@@ -1,0 +1,82 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+:root {
+  --ui-bg: #f7f5f0;
+  --ui-surface: #ffffff;
+  --ui-border: #e2ddd2;
+  --ui-text: #2a3336;
+  --ui-muted: #7a7a72;
+  --ui-accent: #354449;
+  // 由 main.ts 以彈簧曲線覆寫
+  --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  color-scheme: light;
+}
+
+// 深色模式沿用預設色票的深色調
+:root[data-theme='dark'] {
+  --ui-bg: #1d2426;
+  --ui-surface: #263033;
+  --ui-border: #3a4548;
+  --ui-text: #efe9db;
+  --ui-muted: #a89985;
+  --ui-accent: #cfc1ab;
+  color-scheme: dark;
+}
+
+body {
+  margin: 0;
+  background: var(--ui-bg);
+  color: var(--ui-text);
+  font-family:
+    system-ui,
+    -apple-system,
+    'PingFang TC',
+    'Noto Sans TC',
+    sans-serif;
+  line-height: 1.5;
+  transition:
+    background-color 0.3s,
+    color 0.3s;
+}
+
+a {
+  color: inherit;
+}
+
+button {
+  padding: 4px 10px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background: var(--ui-surface);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    transform 0.5s var(--spring),
+    border-color 0.2s;
+
+  &:hover {
+    border-color: var(--ui-muted);
+  }
+
+  // 按壓回饋：縮小後以彈簧回彈
+  &:active {
+    transform: scale(0.94);
+    transition-duration: 0.08s;
+  }
+}
+
+input[type='number'] {
+  padding: 4px 6px;
+  border: 1px solid var(--ui-border);
+  border-radius: 6px;
+  background: var(--ui-surface);
+  color: inherit;
+  font: inherit;
+  font-size: 13px;
+}
