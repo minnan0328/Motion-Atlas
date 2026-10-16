@@ -4,8 +4,11 @@ const REPO = 'minnan0328/motion-atlas'
 export const onSuccess = async ({ utils }) => {
   const { CONTEXT, BRANCH, COMMIT_REF, GH_TAG_TOKEN } = process.env
 
-  // 只在 deploy-prod 的正式部署打 tag
-  if (CONTEXT !== 'production' || BRANCH !== 'deploy-prod') return
+  // 只在 prod 分支的正式部署打 tag；略過時印出原因，方便從部署紀錄排查
+  if (CONTEXT !== 'production' || BRANCH !== 'prod') {
+    console.log(`略過建立 tag：CONTEXT=${CONTEXT}、BRANCH=${BRANCH}（需為 production 與 prod）`)
+    return
+  }
   if (!GH_TAG_TOKEN) return utils.build.failPlugin('缺少 GH_TAG_TOKEN')
 
   // 以台灣時間產生 tag 名稱，例如 prod-20261013-1530
