@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import ControlsPanel from '../../components/controls-panel.vue'
 import DiagnosticsPanel from '../../components/diagnostics-panel.vue'
 import MotionPreview from '../../components/motion-preview.vue'
@@ -18,6 +18,41 @@ const showInfo = ref(false)
 const showSettings = ref(false)
 // 動態設定在桌面版位於右側；窄螢幕接在預覽下方，展開後捲動到可見範圍
 const settings = ref<HTMLElement>()
+
+// 放大預覽：優先使用瀏覽器全螢幕；不支援元素全螢幕時（例如 iPhone Safari）改為覆蓋整個視窗。
+// 以 Esc 或右上角按鈕結束；離開頁面時一併結束
+const stage = ref<HTMLElement>()
+const expanded = ref(false)
+async function toggleExpand() {
+  if (expanded.value) {
+    if (document.fullscreenElement) await document.exitFullscreen().catch(() => undefined)
+    expanded.value = false
+    return
+  }
+  expanded.value = true
+  await stage.value?.requestFullscreen?.().catch(() => undefined)
+}
+const onFullscreenChange = () => {
+  if (!document.fullscreenElement) expanded.value = false
+}
+const onKeydown = (event: KeyboardEvent) => {
+  if (event.key === 'Escape' && expanded.value && !document.fullscreenElement) expanded.value = false
+}
+// 覆蓋視窗時鎖住頁面捲動
+watch(expanded, (value) => {
+  document.body.style.overflow = value && !document.fullscreenElement ? 'hidden' : ''
+})
+onMounted(() => {
+  document.addEventListener('fullscreenchange', onFullscreenChange)
+  window.addEventListener('keydown', onKeydown)
+})
+onBeforeUnmount(() => {
+  document.removeEventListener('fullscreenchange', onFullscreenChange)
+  window.removeEventListener('keydown', onKeydown)
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => undefined)
+  document.body.style.overflow = ''
+})
+
 async function toggleSettings() {
   showSettings.value = !showSettings.value
   if (!showSettings.value) return
@@ -42,7 +77,7 @@ const prev = computed(() => sameCategory.value[(position.value - 1 + sameCategor
 const next = computed(() => sameCategory.value[(position.value + 1) % sameCategory.value.length])
 const number = computed(() => MOTIONS.findIndex((item) => item.id === props.id) + 1)
 
-// 預覽依設計比例顯示，最高不超過視窗的 65%
+// 預覽依設計比例顯示，高度最多填滿視窗中扣除 Header 與標題列的空間
 const aspect = computed(() => (meta.value ? meta.value.previewConfig.width / meta.value.previewConfig.height : 1.5))
 
 const preview = ref<{ getInstance(): MotionInstance | null }>()
@@ -60,30 +95,18 @@ const reset = () => preview.value?.getInstance()?.reset()
   <ErrorView v-if="!meta" />
 
   <main v-else class="motion">
+    <!-- 標題列：返回、標題與展開按鈕；說明與標籤移到預覽下方，讓預覽能放大顯示 -->
     <header class="motion__header">
-      <RouterLink :to="{ path: '/', query: { category: meta.category } }" class="motion__back reveal">← {{ categoryName(meta.category) }}</RouterLink>
-      <!-- 標題與預覽是共用元素（由卡片連續變形而來），不加進場淡入 -->
-      <h1>
-        <span class="motion__index reveal">{{ String(number).padStart(3, '0') }}</span>
-        <span class="motion__title">{{ meta.title }}</span>
-      </h1>
-      <p class="motion__en reveal" style="--i: 1">{{ meta.titleEn }}</p>
-      <p class="reveal" style="--i: 2">{{ meta.description }}</p>
-      <ul class="motion__tags reveal" style="--i: 3">
-        <li class="is-strong">{{ categoryName(meta.category) }}</li>
-        <li class="is-strong">{{ meta.technique }} · {{ meta.dimension.toUpperCase() }}</li>
-        <li v-for="tag in meta.tags" :key="tag">{{ tag }}</li>
-      </ul>
-      <p class="motion__principles reveal" style="--i: 4">
-        主要原則：<span v-for="id in meta.animationPrinciples" :key="id">{{ principleName(id) }}</span>
-      </p>
-    </header>
-
-    <!-- 預覽上方：操作提示與展開按鈕 -->
-    <div class="motion__toolbar reveal" style="--i: 3">
-      <p v-if="meta.supportedControls.includes('camera')" class="motion__hint">拖曳旋轉、滾輪縮放、右鍵平移</p>
-      <p v-else-if="meta.renderMode === 'webgl'" class="motion__hint">點擊預覽給予衝量，觀察剛性、阻尼與質量的反應</p>
-      <div class="motion__toggles">
+      <div class="motion__heading">
+        <RouterLink :to="{ path: '/', query: { category: meta.category } }" class="motion__back reveal">← {{ categoryName(meta.category) }}</RouterLink>
+        <!-- 標題與預覽是共用元素（由卡片連續變形而來），不加進場淡入 -->
+        <h1>
+          <span class="motion__index reveal">{{ String(number).padStart(3, '0') }}</span>
+          <span class="motion__title">{{ meta.title }}</span>
+          <small class="motion__en reveal" style="--i: 1">{{ meta.titleEn }}</small>
+        </h1>
+      </div>
+      <div class="motion__toggles reveal" style="--i: 2">
         <button
           type="button"
           :class="{ 'is-active': showInfo }"
@@ -102,12 +125,23 @@ const reset = () => preview.value?.getInstance()?.reset()
         >
           動態設定
         </button>
+        <button type="button" :aria-pressed="expanded" aria-label="放大預覽" @click="toggleExpand">
+          <span aria-hidden="true">⤢</span> 放大
+        </button>
       </div>
-    </div>
+    </header>
+
     <div class="motion__body" :class="{ 'has-panel': showSettings }">
       <section class="motion__left">
-        <div class="motion__stage" data-leave="shrink" :class="{ 'is-open': showInfo }" :style="{ aspectRatio: String(aspect), viewTransitionName: 'motion-stage' }">
+        <div
+          ref="stage"
+          class="motion__stage"
+          data-leave="shrink"
+          :class="{ 'is-open': showInfo, 'is-expanded': expanded }"
+          :style="{ aspectRatio: String(aspect), viewTransitionName: 'motion-stage' }"
+        >
           <MotionPreview :key="meta.id" ref="preview" :meta="meta" :params="params" :paused="paused" interactive />
+          <button v-if="expanded" type="button" class="motion__close" @click="toggleExpand">✕ 結束放大</button>
         </div>
         <!-- 收合時不掛載，診斷數據的讀取迴圈也一併停止 -->
         <DiagnosticsPanel
@@ -129,6 +163,21 @@ const reset = () => preview.value?.getInstance()?.reset()
       </aside>
     </div>
 
+    <!-- 動態下方：操作提示、說明、標籤與主要原則 -->
+    <section class="motion__about reveal" style="--i: 3">
+      <p v-if="meta.supportedControls.includes('camera')" class="motion__hint">拖曳旋轉、滾輪縮放、右鍵平移</p>
+      <p v-else-if="meta.renderMode === 'webgl'" class="motion__hint">點擊預覽給予衝量，觀察剛性、阻尼與質量的反應</p>
+      <p class="motion__description">{{ meta.description }}</p>
+      <ul class="motion__tags">
+        <li class="is-strong">{{ categoryName(meta.category) }}</li>
+        <li class="is-strong">{{ meta.technique }} · {{ meta.dimension.toUpperCase() }}</li>
+        <li v-for="tag in meta.tags" :key="tag">{{ tag }}</li>
+      </ul>
+      <p class="motion__principles">
+        主要原則：<span v-for="id in meta.animationPrinciples" :key="id">{{ principleName(id) }}</span>
+      </p>
+    </section>
+
     <nav v-if="sameCategory.length > 1 && prev && next" class="motion__nav reveal" style="--i: 5">
       <RouterLink :to="prev.route">← {{ prev.title }}</RouterLink>
       <RouterLink :to="next.route">{{ next.title }} →</RouterLink>
@@ -142,17 +191,27 @@ const reset = () => preview.value?.getInstance()?.reset()
   margin: 0 auto;
   padding: 28px 16px 16px;
 
+  // 標題列：左側返回與標題，右側展開按鈕；窄螢幕時按鈕換到下一行
   &__header {
-    margin-bottom: 24px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 12px 16px;
+    margin-bottom: 16px;
 
     h1 {
-      margin: 10px 0 4px;
-      font-size: 28px;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      gap: 0 10px;
+      margin: 8px 0 0;
+      font-size: 26px;
     }
+  }
 
-    p {
-      margin: 0;
-    }
+  &__heading {
+    min-width: 0;
   }
 
   &__back {
@@ -167,14 +226,32 @@ const reset = () => preview.value?.getInstance()?.reset()
   }
 
   &__index {
-    margin-right: 8px;
     color: var(--ui-muted);
     font-weight: 400;
   }
 
   &__en {
-    margin-bottom: 10px !important;
+    font-size: 15px;
+    font-weight: 400;
     color: var(--ui-muted);
+  }
+
+  // 預覽下方的說明區
+  &__about {
+    margin-top: 24px;
+    padding: 20px;
+    border: 1px solid var(--ui-border);
+    border-radius: 14px;
+    background: var(--ui-surface);
+
+    p {
+      margin: 0;
+    }
+  }
+
+  &__description {
+    max-width: 48em;
+    font-size: 15px;
   }
 
   &__tags {
@@ -239,8 +316,10 @@ const reset = () => preview.value?.getInstance()?.reset()
 
   // 預覽區靠上對齊，底色填滿
   &__stage {
+    position: relative;
     width: 100%;
-    max-height: 65vh;
+    // 扣除 Header（56px）、標題列與上下間距後填滿視窗高度，至少 320px
+    max-height: max(320px, calc(100svh - 190px));
     overflow: hidden;
     border-radius: 13px;
 
@@ -248,26 +327,46 @@ const reset = () => preview.value?.getInstance()?.reset()
     &.is-open {
       border-radius: 13px 13px 0 0;
     }
+
+    // 放大：全螢幕或覆蓋整個視窗，預覽依新尺寸重新縮放
+    &:fullscreen,
+    &.is-expanded {
+      width: 100vw;
+      height: 100vh;
+      max-height: none;
+      aspect-ratio: auto !important;
+      border-radius: 0;
+      background: var(--ui-bg);
+    }
+
+    &.is-expanded:not(:fullscreen) {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      height: 100dvh;
+    }
   }
 
-  // 預覽上方：操作提示與展開按鈕
-  &__toolbar {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px 16px;
-    margin-bottom: 12px;
+  &__close {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 2;
+    padding: 6px 14px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--ui-surface) 85%, transparent);
+    backdrop-filter: blur(6px);
   }
 
   &__hint {
-    margin: 0 !important;
+    margin-bottom: 8px !important;
     font-size: 12px;
     color: var(--ui-muted);
   }
 
   &__toggles {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     margin-left: auto;
 
