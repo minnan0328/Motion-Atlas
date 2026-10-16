@@ -16,11 +16,13 @@ const paused = ref(false)
 // 即時資訊與動態設定預設收合，需要時再展開；切換上一件、下一件時維持目前的展開狀態
 const showInfo = ref(false)
 const showSettings = ref(false)
-// 動態設定位於預覽下方，展開後捲動到可見範圍
+// 動態設定在桌面版位於右側；窄螢幕接在預覽下方，展開後捲動到可見範圍
 const settings = ref<HTMLElement>()
 async function toggleSettings() {
   showSettings.value = !showSettings.value
   if (!showSettings.value) return
+  // 桌面版設定與預覽並排，已在可見範圍內，只有窄螢幕需要捲動
+  if (!window.matchMedia('(max-width: 900px)').matches) return
   await nextTick()
   settings.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
 }
@@ -76,34 +78,35 @@ const reset = () => preview.value?.getInstance()?.reset()
       </p>
     </header>
 
-    <div class="motion__body">
+    <!-- 預覽上方：操作提示與展開按鈕 -->
+    <div class="motion__toolbar">
+      <p v-if="meta.supportedControls.includes('camera')" class="motion__hint">拖曳旋轉、滾輪縮放、右鍵平移</p>
+      <p v-else-if="meta.renderMode === 'webgl'" class="motion__hint">點擊預覽給予衝量，觀察剛性、阻尼與質量的反應</p>
+      <div class="motion__toggles">
+        <button
+          type="button"
+          :class="{ 'is-active': showInfo }"
+          :aria-expanded="showInfo"
+          aria-controls="motion-info"
+          @click="showInfo = !showInfo"
+        >
+          即時資訊 <span aria-hidden="true">{{ showInfo ? '▴' : '▾' }}</span>
+        </button>
+        <button
+          type="button"
+          :class="{ 'is-active': showSettings }"
+          :aria-expanded="showSettings"
+          aria-controls="motion-settings"
+          @click="toggleSettings"
+        >
+          動態設定
+        </button>
+      </div>
+    </div>
+    <div class="motion__body" :class="{ 'has-panel': showSettings }">
       <section class="motion__left">
-        <div class="motion__stage" :style="{ aspectRatio: String(aspect) }">
+        <div class="motion__stage" :class="{ 'is-open': showInfo }" :style="{ aspectRatio: String(aspect) }">
           <MotionPreview :key="meta.id" ref="preview" :meta="meta" :params="params" :paused="paused" interactive />
-        </div>
-        <div class="motion__toolbar">
-          <p v-if="meta.supportedControls.includes('camera')" class="motion__hint">拖曳旋轉、滾輪縮放、右鍵平移</p>
-          <p v-else-if="meta.renderMode === 'webgl'" class="motion__hint">點擊預覽給予衝量，觀察剛性、阻尼與質量的反應</p>
-          <div class="motion__toggles">
-            <button
-              type="button"
-              :class="{ 'is-active': showInfo }"
-              :aria-expanded="showInfo"
-              aria-controls="motion-info"
-              @click="showInfo = !showInfo"
-            >
-              即時資訊 <span aria-hidden="true">{{ showInfo ? '▴' : '▾' }}</span>
-            </button>
-            <button
-              type="button"
-              :class="{ 'is-active': showSettings }"
-              :aria-expanded="showSettings"
-              aria-controls="motion-settings"
-              @click="toggleSettings"
-            >
-              動態設定 <span aria-hidden="true">{{ showSettings ? '▴' : '▾' }}</span>
-            </button>
-          </div>
         </div>
         <!-- 收合時不掛載，診斷數據的讀取迴圈也一併停止 -->
         <DiagnosticsPanel
@@ -197,11 +200,20 @@ const reset = () => preview.value?.getInstance()?.reset()
     }
   }
 
-  // 單欄：預覽滿版，展開的即時資訊在預覽下方，動態設定再接在下方
+  // 預覽滿版；展開動態設定後，桌面版設定在右側（左右 3:2），窄螢幕改為接在預覽下方
   &__body {
     display: grid;
     grid-template-columns: minmax(0, 1fr);
     gap: 24px;
+    align-items: start;
+
+    &.has-panel {
+      grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+
+      @media (max-width: 900px) {
+        grid-template-columns: minmax(0, 1fr);
+      }
+    }
   }
 
   &__left,
@@ -222,17 +234,22 @@ const reset = () => preview.value?.getInstance()?.reset()
     width: 100%;
     max-height: 65vh;
     overflow: hidden;
-    border-radius: 13px 13px 0 0;
+    border-radius: 13px;
+
+    // 下方接著即時資訊時，只保留上方圓角
+    &.is-open {
+      border-radius: 13px 13px 0 0;
+    }
   }
 
-  // 預覽下方：操作提示與展開按鈕
+  // 預覽上方：操作提示與展開按鈕
   &__toolbar {
     display: flex;
     flex-wrap: wrap;
     align-items: center;
     justify-content: space-between;
     gap: 8px 16px;
-    padding: 12px 16px;
+    margin-bottom: 12px;
   }
 
   &__hint {
@@ -263,9 +280,18 @@ const reset = () => preview.value?.getInstance()?.reset()
     border-top: 1px solid var(--ui-border);
   }
 
+  // 右側的設定面板在捲動時保持可見，內容過長時在面板內捲動
   &__panel {
     min-width: 0;
     padding: 20px;
+
+    @media (min-width: 901px) {
+      position: sticky;
+      // 網站 Header 固定在上方（高 56px），面板停在其下方
+      top: 72px;
+      max-height: calc(100vh - 88px);
+      overflow-y: auto;
+    }
   }
 
   &__nav {
