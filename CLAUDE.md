@@ -42,7 +42,20 @@ Motion Atlas 是以動畫展示、即時預覽、參數調整及動畫技術探�
 - **3D 寫實材質**：3D 作品（`dimension: '3d'`）使用接近真實的材質表現：
   - Three.js：`MeshStandardMaterial`／`MeshPhysicalMaterial`（PBR），設定 roughness、metalness；紋理取自 `src/three/textures.ts`；Motion 設定 `toneMapping`（ACES）與 `environment`（共用環境光照貼圖）。
   - CSS 3D：以 `css3d.ts` 的 `surface(color, 'matte' | 'metal')` 表現霧面烤漆（顆粒、倒角）與髮絲紋金屬；球體以多層漸層表現鏡面高光、明暗交界與地面反光，並加接觸陰影。數值為設計 px，倒角與陰影維持在 1px 以下，避免放大後模糊。
-- **網站結構**：Header（分類導覽、主題切換）、Footer、首頁、作品詳細頁。
+- **網站結構**：Header（橫式標誌、分類導覽、主題切換）、Footer（標誌符號、品牌色票、品牌識別連結）、首頁、作品詳細頁、品牌識別頁（`/brand`）。
+
+### 品牌識別（CIS）
+
+品牌的單一來源為 `src/data/brand.ts`（理念、標誌構成、色票、字體、動態規範），標誌元件與品牌頁都從這裡讀取；完整規範呈現在 `/brand`。新增或修改任何品牌元素時，先改 `brand.ts`，不可在頁面中另行定義。
+
+- **理念（MI）**：Motion Atlas（動態圖鑑）以動畫十二法則為座標，為網頁上的動態繪製可探索、可調整的地圖。關鍵字：精準（Precision）、律動（Rhythm）、溫度（Warmth）。
+- **標誌符號**：地球儀（Atlas）與環繞的小星（Motion），以 32 單位方格繪製——地球半徑 9、赤道短半徑 2.7；軌道 13.5 × 4.5（地球的 1.5 倍與 0.5 倍）、傾斜 -18°；小星前方半徑 2、後方 1.5；線寬 1.5 / 0.9 / 0.8。
+- **標準字**：Motion 700、Atlas 400 的字重對比，字距 -0.01em；符號高度為字級的 1.75 倍。中文名稱「動態圖鑑」用於直式組合。
+- **組合**：`site-logo.vue` 的 `variant`——`symbol`（網站圖示、Footer）、`horizontal`（Header）、`stacked`（品牌頁）；`tone`——`auto`（隨主題）、`positive`（淺底）、`reversed`（深底）；`animated` 控制是否播放。
+- **淨空區與最小尺寸**：四周保留小星直徑（4 單位）；最小尺寸符號 16px、橫式 96px 寬。
+- **色彩**：沿用動畫預設色票並命名——墨青 `#354449`（主色）、砂岩 `#cfc1ab`（強調）、象牙 `#efe9db`（基底）、石墨 `#6a6b65`（輔助）、陶土 `#a89985`（點綴）；CSS 變數為 `--brand-*`，標誌用色為 `--logo-*`（正向版與反白版）。
+- **動態**：品牌緩動 Atlas Ease `cubic-bezier(0.45, 0, 0.55, 1)`（`--brand-ease`），互動回饋 Atlas Spring（`--spring`）；標誌經線往返 3 秒、小星環繞 3.6 秒（5 : 6 錯落），小星在軌道兩端減速、繞到後方時被遮住；`prefers-reduced-motion` 或 `animated: false` 時停在小星位於前方的靜止畫面。
+- **使用規範**：不可變形、改色、旋轉、加效果或侵入淨空區；淺色背景用正向版、深色背景用反白版；印刷與靜態圖片使用靜態版本。Favicon 為同構成的靜態符號（`index.html` 內嵌 SVG，小尺寸加粗線條）。
 
 ### 卡片
 
@@ -62,7 +75,9 @@ Motion Atlas 是以動畫展示、即時預覽、參數調整及動畫技術探�
 
 ### 搜尋與篩選
 
-名稱、描述搜尋，以及分類、技術、2D / 3D、標籤篩選；可同時使用、即時更新，提供清除條件與無結果狀態。條件同步到網址。
+名稱、描述搜尋，以及分類、技術、2D / 3D、標籤篩選；可同時使用、即時更新，提供清除條件與無結果狀態。條件同步到網址（`q`、`category`、`tech`、`dim`、`tags`）。
+
+- 首頁預設只顯示搜尋欄與「篩選」按鈕，分類、技術、標籤三組篩選收合（`aria-expanded`、`aria-controls`）；已套用條件時按鈕顯示條件數量（搜尋文字不計），結果數量與「清除條件」維持顯示。網址帶有條件進入時同樣維持收合。
 
 ---
 
@@ -122,11 +137,11 @@ src/three/
 ├── physics.ts           # 彈簧物理 Body（純 TS，各分類共用）
 └── timeline.ts          # keyframes()、cubicBezier()、loop()、alternate()（純 TS，各分類共用）
 
-src/data/                # DEFAULT_COLORS、Bezier 型別、彈簧緩動
+src/data/                # DEFAULT_COLORS、Bezier 型別、彈簧緩動、brand.ts（品牌識別的單一來源）
 src/stores/              # theme（Light / Dark）、palette
 src/router/              # 路由與舊網址導向
-src/components/          # motion-preview、motion-card、controls-panel、diagnostics-panel、bezier-editor
-src/views/               # home（作品網格＋搜尋篩選）、motion（詳細頁）、error
+src/components/          # motion-preview、motion-card、controls-panel、diagnostics-panel、bezier-editor、site-logo
+src/views/               # home（作品網格＋搜尋篩選）、motion（詳細頁）、brand（品牌識別）、error
 ```
 
 ### 5.2 Metadata（`MotionMeta`）
@@ -265,9 +280,10 @@ Header 導覽、首頁篩選、搜尋、路由與詳細頁會自動納入，不�
 
 ### 7.1 網站
 
-- 首頁作品網格（121 件），名稱與描述搜尋，分類、技術、2D / 3D、標籤篩選，條件同步網址，清除條件與無結果狀態。
+- 首頁作品網格（121 件），名稱與描述搜尋，分類、技術、2D / 3D、標籤篩選（預設收合），條件同步網址，清除條件與無結果狀態。
 - 作品詳細頁 `/motion/:id`：預覽、即時資訊（FPS、Frame Time、Progress、Keyframe、Playback、Rendering）、播放／暫停／重設、只顯示支援的控制項；即時資訊與動態設定預設收合（見第 2 節）。
-- Header、Footer、Light / Dark Theme、響應式版面；舊網址 `/basic`、`/text`、`/typography`、`/architecture`、`/:category/:id` 自動導向。
+- 品牌識別頁 `/brand`：理念、標誌組合（橫式、直式、符號 × 正向版、反白版）、構成方格、淨空區與最小尺寸、色彩、字體、動態規範與使用規範。
+- Header（動態標誌）、Footer（品牌識別連結）、Light / Dark Theme、響應式版面；舊網址 `/basic`、`/text`、`/typography`、`/architecture`、`/:category/:id` 自動導向。
 
 ### 7.2 基礎動態（20 件）
 
@@ -387,6 +403,9 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 | Phase 5 | 詳細頁的即時資訊與動態設定預設收合，以預覽下方按鈕展開；單欄版面，動態設定顯示在下方並捲動到面板 | 1280、390 px 確認收合與展開、`aria-expanded`、診斷數據更新 |
 | Phase 6 | 平交道安全規則（時間預測、先警示後放下柵欄、停止線等候、危險區內加速離開、靠右分道）；瀑布在島緣截止、石砌堰口與大石、拋物線水幕與流動條紋、水霧；天空穹頂與太陽、月亮升起落下、星空，日出日落依季節變化；診斷資訊的天數修正 | 模擬 300 秒（含 2 倍速與兩組極端緩動），行人與車廂的最小距離 ≥ 0.59，從未重疊；日出、日落、月出、夜晚、瀑布、平交道截圖；離開後 Three.js 物件數量不變 |
 | Phase 7 | 詳細頁的展開按鈕移到預覽上方；動態設定在 Desktop 展開於右側（3:2、sticky），窄螢幕接在預覽下方 | 1280、390 px 確認收合與展開、無水平捲動 |
+| Phase 8 | 首頁篩選預設收合：搜尋欄旁的「篩選」按鈕展開，按鈕顯示已套用的條件數量 | 1280、390 px 確認預設收合、展開、網址帶條件時的數量顯示，無水平捲動 |
+| Phase 9 | 網站 Logo：地球儀與環繞小星的動態標誌（`site-logo.vue`）取代原本的圓點，Favicon 改為同構圖的靜態版本 | 淺色、深色主題多個時間點截圖；減少動態時動畫暫停；Favicon 於 16、64 px 顯示正常 |
+| Phase 10 | 品牌識別（CIS）：`brand.ts` 單一來源、標誌構成方格化、標準字字重對比、橫式／直式／符號與正向／反白版、`--brand-*`／`--logo-*` 色彩變數、品牌緩動；新增 `/brand` 品牌識別頁、Footer 品牌連結、theme-color 與 description meta | 淺色、深色、390 px 截圖，無水平捲動；最小尺寸量測（符號 16px）；減少動態時暫停 |
 
 ---
 
@@ -407,6 +426,6 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 - ……
 ```
 
-### Phase 8（待規劃）
+### Phase 11（待規劃）
 
 尚未定義。

@@ -9,6 +9,11 @@ const urls: RouteRecordRaw[] = [
     component: () => import('../views/home/home.vue'),
   },
   {
+    path: '/brand',
+    name: 'Brand',
+    component: () => import('../views/brand/brand.vue'),
+  },
+  {
     path: '/motion/:id',
     name: 'Motion',
     component: () => import('../views/motion/motion.vue'),

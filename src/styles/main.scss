@@ -13,6 +13,20 @@
   --ui-accent: #354449;
   // 由 main.ts 以彈簧曲線覆寫
   --spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  // 品牌緩動（Atlas Ease，見 src/data/brand.ts）
+  --brand-ease: cubic-bezier(0.45, 0, 0.55, 1);
+  // 品牌色票
+  --brand-ink: #354449;
+  --brand-sandstone: #cfc1ab;
+  --brand-ivory: #efe9db;
+  --brand-graphite: #6a6b65;
+  --brand-clay: #a89985;
+  // 標誌：正向版（淺色背景）
+  --logo-rim: var(--brand-ink);
+  --logo-fill: var(--brand-ivory);
+  --logo-line: var(--brand-graphite);
+  --logo-orbit: var(--brand-clay);
+  --logo-star: var(--brand-ink);
   color-scheme: light;
 }
 
@@ -24,6 +38,12 @@
   --ui-text: #efe9db;
   --ui-muted: #a89985;
   --ui-accent: #cfc1ab;
+  // 標誌：反白版（深色背景）
+  --logo-rim: var(--brand-ivory);
+  --logo-fill: #263033;
+  --logo-line: var(--brand-clay);
+  --logo-orbit: var(--brand-clay);
+  --logo-star: var(--brand-sandstone);
   color-scheme: dark;
 }
 

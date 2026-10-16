@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import SiteLogo from './components/site-logo.vue'
 import { CATEGORIES } from './motions/registry'
 import { DEFAULT_COLORS } from './data/motion'
 import { useTheme } from './stores/theme'
@@ -11,9 +12,8 @@ const year = new Date().getFullYear()
   <div class="app">
     <header class="app-header">
       <div class="app-header__inner">
-        <RouterLink to="/" class="app-header__logo">
-          <span class="app-header__mark" />
-          Motion Atlas
+        <RouterLink to="/" class="app-header__logo" aria-label="Motion Atlas 首頁">
+          <SiteLogo variant="horizontal" class="app-header__mark" />
         </RouterLink>
 
         <nav class="app-header__nav">
@@ -44,9 +44,13 @@ const year = new Date().getFullYear()
 
     <footer class="app-footer">
       <div class="app-footer__inner">
-        <ul class="app-footer__palette" aria-label="預設色票">
-          <li v-for="color in DEFAULT_COLORS" :key="color" :style="{ background: color }" :title="color" />
-        </ul>
+        <RouterLink to="/brand" class="app-footer__brand" aria-label="品牌識別">
+          <SiteLogo :animated="false" />
+          <ul class="app-footer__palette" aria-label="品牌色票">
+            <li v-for="color in DEFAULT_COLORS" :key="color" :style="{ background: color }" :title="color" />
+          </ul>
+          <span>品牌識別</span>
+        </RouterLink>
         <p>© {{ year }} Motion Atlas · 依循動畫十二法則 · Vue 3、Web Animations API、Three.js</p>
       </div>
     </footer>
@@ -92,17 +96,17 @@ const year = new Date().getFullYear()
     text-decoration: none;
   }
 
-  // 標誌：以擠壓與伸展的圓點呈現
+  // 標誌：橫式組合（site-logo.vue）；滑過時符號以彈簧緩動擠壓、回彈
   &__mark {
-    width: 14px;
-    height: 14px;
-    border-radius: 50%;
-    background: var(--ui-accent);
-    transition: transform 0.6s var(--spring);
+    font-size: 16px;
+
+    :deep(.site-logo__symbol) {
+      transition: transform 0.6s var(--spring);
+    }
   }
 
-  &__logo:hover &__mark {
-    transform: scale(1.25, 0.8);
+  &__logo:hover &__mark :deep(.site-logo__symbol) {
+    transform: scale(1.12, 0.9) rotate(-8deg);
   }
 
   &__nav {
@@ -139,10 +143,10 @@ const year = new Date().getFullYear()
     font-size: 15px;
   }
 
+  // 窄螢幕只保留標誌符號
   @media (max-width: 480px) {
-    &__logo {
-      font-size: 0;
-      gap: 0;
+    &__mark :deep(.site-logo__wordmark) {
+      display: none;
     }
   }
 }
@@ -165,6 +169,19 @@ const year = new Date().getFullYear()
       margin: 0;
       font-size: 13px;
       color: var(--ui-muted);
+    }
+  }
+
+  &__brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 13px;
+    color: var(--ui-muted);
+    text-decoration: none;
+
+    &:hover {
+      color: var(--ui-text);
     }
   }
 
