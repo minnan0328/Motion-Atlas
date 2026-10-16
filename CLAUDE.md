@@ -17,8 +17,10 @@ Motion Atlas 是以動畫展示、即時預覽、參數調整及動畫技術探�
 
 - Vue 3、TypeScript、Composition API、`<script setup lang="ts">`
 - Vue Router、Vite、Sass
-- Three.js：即時 3D 場景與 3D 動畫
-- CSS / Web Animations API / SVG：2D、文字及一般介面動畫
+- 依分類決定渲染技術：
+  - **基礎動態、文字動態**：CSS / Web Animations API / SVG；需要立體效果時使用 CSS 3D Transform（`preserve-3d` + `perspective`），不使用 Three.js
+  - **建築動態**：Three.js（即時 3D 場景、攝影機、材質與光線）
+- Three.js 只在進入建築場景時延遲載入，不得被首頁或其他分類靜態引用
 - 狀態管理優先使用 Vue Reactivity；只有實際出現跨頁面共享狀態需求時，才引入額外套件
 - 禁止引入 React、React Three Fiber，或以其他框架取代既定技術
 
@@ -32,7 +34,7 @@ Motion Atlas 是以動畫展示、即時預覽、參數調整及動畫技術探�
 - **動畫預設色票**：`#cfc1ab`、`#6a6b65`、`#354449`、`#efe9db`、`#a89985`（`DEFAULT_COLORS`，舞台中為 `--c1` ~ `--c5`）。
 - **場景專屬色票**：個別場景可使用獨立配色，但不得覆蓋網站全域主題色彩。
 - **響應式**：Desktop、Tablet、Mobile 皆可操作，不得產生水平捲動。
-- **平面優先**：以 2D 為預設；只有明確需要空間深度或立體形變時才使用 Three.js。不需要陰影的動畫不加陰影。
+- **平面優先**：以 2D 為預設；基礎動態與文字動態需要空間深度或立體形變時使用 CSS 3D Transform，Three.js 只用於建築動態。不需要陰影的動畫不加陰影。
 - **網站結構**：Header（分類導覽、主題切換）、Footer、首頁、作品詳細頁。
 
 ### 卡片
@@ -95,13 +97,14 @@ src/motions/
 │   ├── controllers.ts   # waapiGroup()、rafClock()、timing()、directedProgress()
 │   ├── dom.ts           # createDomStage()、el()、svg()、PALETTE
 │   ├── scene.ts         # domScene()、shape()、ground()：2D 幾何動畫
-│   └── webgl.ts         # webglModule()：將 Three.js 場景包裝成統一生命週期
+│   ├── css3d.ts         # css3dScene()、Node3D、cube()、plane()、shade()：CSS 3D 動畫
+│   └── webgl.ts         # webglModule()：將 Three.js 場景包裝成統一生命週期（僅建築動態）
 ├── basic/               # 分類：基礎動態（index.ts 為 Metadata）
-├── basic3d/             # 基礎動態的 3D 場景
+├── basic3d/             # 基礎動態的 3D 場景（CSS 3D Transform）
 ├── typography/          # 分類：文字動態（Preset 引擎、keyframes、獨立模組）
 └── architecture/        # 分類：建築動態（3D 場景）
 
-src/three/               # 共用 WebGL renderer、場景（createStage）、物理（Body）、時間軸（keyframes）
+src/three/               # WebGL renderer、場景（createStage）供建築動態使用；物理（Body）、時間軸（keyframes）為純 TS，各分類共用
 src/components/          # motion-preview、motion-card、controls-panel、diagnostics-panel、bezier-editor
 src/views/               # home（作品網格＋搜尋篩選）、motion（詳細頁）、error
 ```
@@ -154,7 +157,8 @@ interface MotionInstance {
 1. **Preset**：現有 Preset 引擎能完整表達 → 加入 keyframes 與設定。
 2. **Standalone（Web Animations）**：需要多階段、多物件協同或特殊時間軸 → `domScene()` 或 `waapiText()`。
 3. **Standalone（逐幀）**：需要逐幀計算（字元變換、物理模擬、連續函數）→ `rafText()` / `rafClock()`，診斷不回報 keyframe。
-4. **Three.js**：需要 3D 場景、攝影機、材質或光線 → 匯出 `MotionFactory`，以 `webglModule()` 包裝。
+4. **CSS 3D**：基礎或文字動態需要立體結構、空間深度 → `css3dScene()`（基礎動態）或 CSS 3D Transform（文字動態）。
+5. **Three.js**：僅限建築動態 → 匯出 `MotionFactory`，以 `webglModule()` 包裝。
 
 不可為了重用而把複雜動畫簡化成缺乏辨識度的效果。
 
@@ -182,7 +186,7 @@ interface MotionInstance {
 ### 6.1 新增基礎動態
 
 1. 2D：在 `src/motions/basic/basic-2d.ts` 以 `domScene()` 匯出新動畫（舞台 150 × 100，使用 `shape()` 建立物件、`cssEasing(params)` 取得緩動、`timing(params)` 取得時間設定）。
-2. 3D：在 `src/motions/basic3d/scenes.ts` 匯出 `MotionFactory`（`createStage({ mode: '3d' })`），需要物理回饋的物件以 `stage.body()` 註冊。
+2. 3D：在 `src/motions/basic3d/scenes.ts` 以 `css3dScene(floorY, build)` 匯出（座標為設計 px、y 向上、原點在地面中心），以 `node()` 建立物件、`cube()` / `plane()` 建立面、`shade()` 模擬受光；需要點擊物理回饋的物件以 `node(parent, pose, true)` 註冊。不使用 Three.js。
 3. 在 `src/motions/basic/index.ts` 的 `ENTRIES` 加入一筆：id、名稱、說明、標籤（動態類型與物件）、原則、預設參數、控制項、`source`。
 
 ### 6.2 新增文字動態
@@ -229,7 +233,7 @@ Header 導覽、首頁篩選、搜尋、路由與詳細頁會自動納入，不�
 **基礎動態：20 件**
 
 - 2D（Web Animations API / SVG）17 件：位移、旋轉、縮放、透明度、色彩轉換、彈跳（重力與反彈係數計算）、彈性（彈簧緩動）、搖晃（衰減震盪）、脈動、環繞、路徑、交錯、形狀變形、無限循環、跟隨動作、線條描繪、預備跳躍。
-- 3D（Three.js）3 件：立體球體彈跳、立方體翻滾、陀螺儀；點擊預覽給予物理衝量。
+- 3D（CSS 3D Transform）3 件：立體球體彈跳、立方體翻滾、陀螺儀；點擊預覽給予物理衝量。
 - 涵蓋 Position / Translation、Rotation、Scale、Opacity、Color Transition、Bounce、Elastic Motion、Shake、Pulse、Orbit、Path Motion、Stagger、Shape Morphing、Loop、Follow Through；物件包含圓形、球體、正方形、矩形、三角形、多邊形、線條與環形。
 
 **文字動態：100 件**
@@ -268,7 +272,7 @@ Header 導覽、首頁篩選、搜尋、路由與詳細頁會自動納入，不�
 - 實機 FPS 未測量（測試環境為軟體渲染）。
 - 部分效果需較新瀏覽器：`offset-path`、`linear()` 緩動（Chrome 116+、Safari 17.2+、Firefox 112+）。
 - 建築模型依文字資料建模，未以實測圖面或照片比對，未宣稱達成 90% 還原度。
-- Three.js 打包後超過 500 kB（建置警告）。
+- CSS 3D 沒有真實光照：立方體以面法向量計算亮度、球體以漸層表現受光。
 
 ---
 

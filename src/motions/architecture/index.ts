@@ -1,6 +1,5 @@
 import { withDefaults } from '../core/params'
 import type { MotionMeta } from '../core/types'
-import { webglModule } from '../core/webgl'
 
 // 建築動態：Three.js 即時 3D 場景
 export const architectureMotions: MotionMeta[] = [
@@ -21,6 +20,8 @@ export const architectureMotions: MotionMeta[] = [
     animationPrinciples: ['staging', 'slow-in-and-slow-out', 'timing', 'secondary-action', 'follow-through-and-overlapping-action', 'solid-drawing', 'appeal'],
     route: '/motion/tainan-station',
     defaults: withDefaults({ duration: 12, easing: [0.45, 0, 0.55, 1], stiffness: 380, damping: 0.45 }),
-    load: () => import('./tainan-station').then((m) => webglModule(m.default)),
+    // Three.js 只在進入建築場景時載入
+    load: () =>
+      Promise.all([import('../core/webgl'), import('./tainan-station')]).then(([{ webglModule }, m]) => webglModule(m.default)),
   },
 ]

@@ -1,7 +1,6 @@
 import { withDefaults } from '../core/params'
 import type { PrincipleId } from '../core/principles'
 import type { ControlKey, MotionMeta, MotionModule, MotionParams } from '../core/types'
-import { webglModule } from '../core/webgl'
 
 type Source2d = keyof typeof import('./basic-2d')
 type Source3d = keyof typeof import('../basic3d/scenes')
@@ -225,7 +224,7 @@ const ENTRIES: BasicEntry[] = [
     id: 'cube-tumble-3d',
     title: '立方體翻滾',
     titleEn: '3D Cube Tumble',
-    description: '立方體以底部的邊為支點逐格翻滾，往右三格後再滾回來。',
+    description: '立方體以底部的邊為支點逐格翻滾，往右三格後再滾回來；點擊預覽可給予衝量。',
     tags: ['Rotation', 'Loop', '正方形', '立方體'],
     principles: ['solid-drawing', 'straight-ahead-and-pose-to-pose'],
     defaults: { duration: 3.6, easing: [0.65, 0, 0.35, 1] },
@@ -236,8 +235,8 @@ const ENTRIES: BasicEntry[] = [
     id: 'gyroscope-3d',
     title: '陀螺儀',
     titleEn: '3D Gyroscope',
-    description: '三層圓環分別沿 X、Y、Z 軸以 90 度為單位轉動，中心多面體持續自轉。',
-    tags: ['Rotation', 'Orbit', '環形', '多邊形'],
+    description: '三層圓環分別沿 X、Y、Z 軸以 90 度為單位轉動，中心立方體持續自轉；點擊預覽可給予衝量。',
+    tags: ['Rotation', 'Orbit', '環形', '立方體'],
     principles: ['solid-drawing', 'secondary-action'],
     defaults: { duration: 4, easing: [0.65, 0, 0.35, 1] },
     controls: ['duration', 'delay', 'repeat', 'easing', 'cubicBezier', 'stiffness', 'damping', 'mass'],
@@ -250,7 +249,7 @@ export const basicMotions: MotionMeta[] = ENTRIES.map((entry) => {
   const load: () => Promise<MotionModule> =
     source.dimension === '2d'
       ? () => import('./basic-2d').then((m) => m[source.name])
-      : () => import('../basic3d/scenes').then((m) => webglModule(m[source.name]))
+      : () => import('../basic3d/scenes').then((m) => m[source.name])
   const svgBased = ['path-motion', 'loop-path', 'line-draw'].includes(entry.id)
   return {
     id: entry.id,
@@ -259,9 +258,9 @@ export const basicMotions: MotionMeta[] = ENTRIES.map((entry) => {
     description: entry.description,
     category: 'basic',
     tags: entry.tags,
-    renderMode: source.dimension === '3d' ? 'webgl' : svgBased ? 'svg' : 'css',
+    renderMode: svgBased ? 'svg' : 'css',
     dimension: source.dimension,
-    technique: source.dimension === '3d' ? 'Three.js' : svgBased ? 'SVG + Web Animations API' : 'Web Animations API',
+    technique: source.dimension === '3d' ? 'CSS 3D Transform' : svgBased ? 'SVG + Web Animations API' : 'Web Animations API',
     implementation: 'standalone',
     previewConfig: { width: 150, height: 100 },
     supportedControls: entry.controls,

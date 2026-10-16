@@ -1,23 +1,38 @@
-import * as THREE from 'three'
-import { createStage, type Motion } from '../../three/stage'
 import { keyframes, loop } from '../../three/timeline'
+import { css3dScene, cube, plane, shade, TILT } from '../core/css3d'
+import { el } from '../core/dom'
 
-// 3D 基礎動畫：需要空間深度與立體形變時才使用 Three.js，畫面比例 3:2
-const ASPECT = 1.5
-const stage3d = () =>
-  createStage({ mode: '3d', aspect: ASPECT, fov: 32, cameraY: 4.2, lookY: 1.1, distance: 11, light: [4, 9, 6], shadowSize: 6 })
+// 3D 基礎動畫：以 CSS 3D Transform（preserve-3d + perspective）建立空間深度與立體形變，
+// 座標為設計 px（舞台 150 × 100），y 向上，原點在地面中心
+
+// 地面上的柔和陰影
+const floorShadow = (parent: HTMLElement, size: number) =>
+  plane(parent, size, size, 'rotateX(90deg)', {
+    borderRadius: '50%',
+    backfaceVisibility: 'visible',
+    background: 'radial-gradient(closest-side, rgba(53, 68, 73, 0.45), rgba(53, 68, 73, 0))',
+  })
 
 // 立體球體彈跳：重力加速落下、反彈高度依次遞減，觸地壓扁；陰影隨高度縮放
-export function sphereBounce(): Motion {
-  const stage = stage3d()
-  const pivot = new THREE.Group()
-  const ball = stage.mesh(new THREE.SphereGeometry(0.6, 48, 32), 2)
-  ball.position.y = 0.6
-  pivot.add(ball)
-  stage.scene.add(stage.body(pivot))
+export const sphereBounce = css3dScene(86, ({ root, node }) => {
+  const radius = 11
+  const shadow = floorShadow(root, radius * 3)
+  // 球體的原點在底部，壓扁時以觸地點為基準；球面以漸層表現受光，並保持面向鏡頭
+  const ball = node(root, {}, true)
+  ball.suffix = `rotateX(${-TILT}deg)`
+  el('div', {
+    position: 'absolute',
+    left: `${-radius}px`,
+    top: `${-radius * 2}px`,
+    width: `${radius * 2}px`,
+    height: `${radius * 2}px`,
+    borderRadius: '50%',
+    background: 'radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--c3), white 32%) 0%, var(--c3) 48%, color-mix(in srgb, var(--c3), black 35%) 100%)',
+  }, ball.element)
 
-  // 以重力計算：落下高度 3，反彈係數 0.6
+  // 以重力計算（g = 1 的無因次時間）：落下高度 3，反彈係數 0.6
   const height = 3
+  const scale = 18
   const restitution = 0.6
   const fall = Math.sqrt(2 * height)
   const impacts: number[] = []
@@ -32,7 +47,6 @@ export function sphereBounce(): Motion {
   const DURATION = 2.4
 
   return {
-    ...stage,
     timeline: { duration: DURATION, direction: 'normal', offsets: [0, ...impacts.map((t) => (t / total) * 0.85), 1] },
     update(t, ease) {
       const p = loop(t, DURATION)
@@ -43,7 +57,7 @@ export function sphereBounce(): Motion {
         y = height * ease((p - 0.85) / 0.15)
       } else {
         const tt = (p / 0.85) * total
-        if (tt < fall) y = height - tt * tt / 2
+        if (tt < fall) y = height - (tt * tt) / 2
         else {
           let start = fall
           let v = 1
@@ -51,8 +65,7 @@ export function sphereBounce(): Motion {
             v *= restitution
             if (tt < next) {
               const local = tt - start
-              const v0 = fall * v
-              y = v0 * local - (local * local) / 2
+              y = fall * v * local - (local * local) / 2
               break
             }
             start = next
@@ -62,74 +75,105 @@ export function sphereBounce(): Motion {
         const nearest = Math.min(...impacts.map((impact) => Math.abs(impact - tt)))
         squash = Math.max(0, 1 - nearest / 0.12) * 0.35
       }
-      pivot.position.y = Math.max(y, 0)
-      pivot.scale.set(1 + squash, 1 - squash, 1 + squash)
+      ball.position = [0, Math.max(y, 0) * scale, 0]
+      ball.scale = [1 + squash, 1 - squash, 1 + squash]
+    },
+    afterPhysics() {
+      // 陰影跟隨球的實際位置（含點擊彈起），越高越小越淡
+      const lift = Math.min((ball.position[1]! + ball.hop) / (height * scale), 1.5)
+      shadow.style.transform = `translate3d(${ball.position[0]}px, 0, ${ball.position[2]}px) rotateX(90deg) scale(${1 - lift * 0.45})`
+      shadow.style.opacity = String(1 - lift * 0.55)
     },
   }
-}
+})
 
 // 立方體翻滾：以底部的邊為支點每次翻轉 90 度，往右滾三格再滾回來
-export function cubeTumble(): Motion {
-  const stage = stage3d()
-  const size = 1
-  const cube = stage.mesh(new THREE.BoxGeometry(size, size, size), [1, 1, 0, 4, 2, 2].map((index) => stage.material(index)))
-  stage.scene.add(stage.body(cube))
+export const cubeTumble = css3dScene(70, ({ root, node }) => {
+  const size = 22
   const STEPS = 3
+  const start = -1.5 * size
+  // 地面格線：標示每一次翻滾的落點
+  for (let k = 0; k <= STEPS; k++) {
+    plane(root, size, size, `translate3d(${start + k * size}px, 0, 0) rotateX(90deg)`, {
+      border: '1px solid rgba(168, 153, 133, 0.6)',
+      boxSizing: 'border-box',
+      backfaceVisibility: 'visible',
+    })
+  }
+  const shadow = floorShadow(root, size * 1.6)
+  const box = node(root, { position: [start, size / 2, 0] }, true)
+  const faces = cube(box.element, size, ['var(--c2)', 'var(--c2)', 'var(--c1)', 'var(--c5)', 'var(--c3)', 'var(--c3)'], 2)
+
   const DURATION = 3.6
-  const start = -1.5
   // 每一步：前 70% 翻轉、後 30% 停頓
   const roll = keyframes(
     Array.from({ length: STEPS + 1 }, (_, k) => [k / STEPS, k] as [number, number]).flatMap(([offset, k], i) =>
       i === 0 ? [[offset, k] as [number, number]] : [[offset - 0.3 / STEPS, k] as [number, number], [offset, k] as [number, number]],
     ),
   )
-  const pivot = new THREE.Vector3()
-  const offset = new THREE.Vector3()
   return {
-    ...stage,
     timeline: { duration: DURATION, direction: 'alternate', offsets: roll.offsets },
     update(t, ease) {
       const p = 1 - Math.abs(1 - ((t / DURATION) % 2))
       const value = roll(p, ease)
       const k = Math.min(Math.floor(value), STEPS - 1)
       const f = value - k
-      // 支點在目前所在格的右下邊
-      pivot.set(start + k * size + size / 2, 0, 0)
-      const angle = -f * (Math.PI / 2)
-      offset.set(-size / 2, size / 2, 0).applyAxisAngle(new THREE.Vector3(0, 0, 1), angle)
-      cube.position.copy(pivot).add(offset)
-      cube.rotation.set(0, 0, angle - k * (Math.PI / 2))
+      // 支點在目前所在格的右下邊，中心繞支點順時針轉動
+      const angle = f * 90
+      const a = (angle * Math.PI) / 180
+      const [ox, oy] = [-size / 2, size / 2]
+      const pivot = start + k * size + size / 2
+      box.position = [pivot + ox * Math.cos(a) + oy * Math.sin(a), -ox * Math.sin(a) + oy * Math.cos(a), 0]
+      box.rotation = [0, 0, angle + k * 90]
+    },
+    afterPhysics() {
+      shade(faces, [box.rotation])
+      const lift = Math.min(box.hop / 40, 1)
+      shadow.style.transform = `translate3d(${box.position[0]}px, 0, 0) rotateX(90deg) scale(${1 - lift * 0.4})`
+      shadow.style.opacity = String(1 - lift * 0.5)
     },
   }
-}
+})
 
-// 陀螺儀：三層圓環分別沿 X、Y、Z 軸轉動，每次轉動 90 度後停頓，中心球體持續自轉
-export function gyroscope(): Motion {
-  const stage = stage3d()
-  const group = new THREE.Group()
-  group.position.y = 1.4
-  stage.scene.add(stage.body(group))
-  const rings = [1.3, 1.0, 0.72].map((radius, i) => {
-    const ring = stage.mesh(new THREE.TorusGeometry(radius, 0.06, 16, 80), [2, 0, 1][i]!)
-    group.add(ring)
+// 陀螺儀：三層圓環分別沿 X、Y、Z 軸轉動，每次轉動 90 度後停頓，中心立方體持續自轉
+export const gyroscope = css3dScene(84, ({ root, node }) => {
+  floorShadow(root, 50)
+  const group = node(root, { position: [0, 27, 0] }, true)
+  const rings = [
+    { radius: 23, color: 'var(--c3)' },
+    { radius: 18, color: 'var(--c1)' },
+    { radius: 13, color: 'var(--c2)' },
+  ].map(({ radius, color }) => {
+    const ring = node(group.element)
+    // 三層薄環疊出厚度，側面時仍看得出是實體
+    for (const z of [-0.9, 0, 0.9]) {
+      plane(ring.element, radius * 2, radius * 2, `translateZ(${z}px)`, {
+        borderRadius: '50%',
+        border: `2.2px solid ${color}`,
+        boxSizing: 'border-box',
+        backfaceVisibility: 'visible',
+      })
+    }
     return ring
   })
-  const core = stage.mesh(new THREE.IcosahedronGeometry(0.32, 1), 4)
-  group.add(core)
+  const core = node(group.element)
+  const faces = cube(core.element, 9, Array(6).fill('var(--c5)'), 1)
+
   const DURATION = 4
   const quarter = keyframes([
     [0, 0], [0.18, 1], [0.25, 1], [0.43, 2], [0.5, 2], [0.68, 3], [0.75, 3], [0.93, 4], [1, 4],
   ])
   return {
-    ...stage,
     timeline: { duration: DURATION, direction: 'normal', offsets: quarter.offsets },
     update(t, ease) {
-      const p = loop(t, DURATION)
-      const turns = quarter(p, ease) * (Math.PI / 2)
-      rings[0]!.rotation.set(turns, 0, 0)
-      rings[1]!.rotation.set(0, turns, Math.PI / 2)
-      rings[2]!.rotation.set(Math.PI / 2, 0, turns)
-      core.rotation.set(t * 0.7, t * 1.1, 0)
+      const turns = quarter(loop(t, DURATION), ease) * 90
+      rings[0]!.rotation = [turns, 0, 0]
+      rings[1]!.rotation = [0, turns, 90]
+      rings[2]!.rotation = [90, 0, turns]
+      core.rotation = [t * 40, t * 63, 0]
+    },
+    afterPhysics() {
+      shade(faces, [core.rotation, group.rotation])
     },
   }
-}
+})
