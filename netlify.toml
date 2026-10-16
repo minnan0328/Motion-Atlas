@@ -1,3 +1,11 @@
 # 只載入 plugin，不寫 [build]，build 設定沿用 Netlify 後台
 [[plugins]]
 package = "/netlify/plugins/create-deploy-tag"
+
+# 單頁應用：網址（例如 /motion/bounce）由前端路由處理，伺服器上沒有對應的檔案。
+# 重新整理或直接開啟網址時一律回傳 index.html（狀態 200），再由 Vue Router 顯示頁面；
+# 未設定 force，實際存在的檔案（/assets/*）仍照常提供
+[[redirects]]
+from = "/*"
+to = "/index.html"
+status = 200
