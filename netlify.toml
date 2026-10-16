@@ -1,0 +1,3 @@
+# 只載入 plugin，不寫 [build]，build 設定沿用 Netlify 後台
+[[plugins]]
+package = "/netlify/plugins/create-deploy-tag"
