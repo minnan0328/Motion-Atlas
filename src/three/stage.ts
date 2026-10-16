@@ -18,6 +18,10 @@ export interface Motion {
   timeline: Timeline
   // 畫面寬高比，預設為 1
   aspect?: number
+  // 寫實材質：以 ACES 色調映射輸出，exposure 為曝光值；未設定時不做色調映射
+  toneMapping?: { exposure: number }
+  // 寫實材質：使用共用的環境光照貼圖（反射與間接光），強度由 scene.environmentIntensity 調整
+  environment?: boolean
   overlay?: MotionOverlay
   update(time: number, ease: Ease): void
   // 每格在 update 之後執行物理模擬
@@ -68,8 +72,8 @@ interface StageOptions {
   distance?: number
   fov?: number
   aspect?: number
-  // floor：水平地面（基本動態）；wall：文字後方的牆面（文字動態）
-  ground?: 'floor' | 'wall'
+  // floor：水平地面（基本動態）；wall：文字後方的牆面（文字動態）；none：不建立接收陰影的地面（漂浮場景）
+  ground?: 'floor' | 'wall' | 'none'
   wallZ?: number
   light?: [number, number, number]
   // 陰影相機的範圍
@@ -158,7 +162,7 @@ export function createStage({
     return object
   }
 
-  if (!flat) {
+  if (!flat && groundType !== 'none') {
     // 透明地面只顯示陰影，陰影顏色為地面色
     const ground = new THREE.Mesh(
       new THREE.PlaneGeometry(shadowSize * 6, shadowSize * 6),
@@ -191,7 +195,7 @@ export function createStage({
 
   function dispose() {
     scene.traverse((object) => {
-      if (object instanceof THREE.Mesh || object instanceof THREE.Line) {
+      if (object instanceof THREE.Mesh || object instanceof THREE.Line || object instanceof THREE.Points) {
         object.geometry.dispose()
         const materials = Array.isArray(object.material) ? object.material : [object.material]
         materials.forEach((m: THREE.Material) => m.dispose())

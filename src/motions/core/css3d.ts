@@ -61,10 +61,38 @@ const FACES: { normal: [number, number, number]; transform: (h: number) => strin
   { normal: [0, 0, -1], transform: (h) => `rotateY(180deg) translateZ(${h}px)` },
 ]
 
-export function cube(parent: HTMLElement, size: number, colors: string[], radius = 0) {
+/**
+ * 表面材質：CSS 3D 沒有真實光照，以多層漸層與雜訊模擬粗糙度、倒角與金屬反射。
+ * matte：霧面烤漆（細微顆粒、邊緣倒角受光）；metal：髮絲紋金屬（細密拉絲與斜向高光）。
+ * 數值為設計 px，舞台會依預覽尺寸放大，陰影與倒角需維持在 1px 以下
+ */
+export type Finish = 'matte' | 'metal'
+// 可無縫重複的細微顆粒（SVG 分形雜訊，透明度隨雜訊變化）
+const GRAIN =
+  "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='48' height='48'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0.28 0 0 0 0'/%3E%3C/filter%3E%3Crect width='48' height='48' filter='url(%23n)'/%3E%3C/svg%3E\")"
+export function surface(color: string, finish: Finish = 'matte'): Partial<CSSStyleDeclaration> {
+  if (finish === 'metal') {
+    return {
+      backgroundColor: color,
+      backgroundImage: [
+        'repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.08) 0 0.5px, rgba(0, 0, 0, 0.07) 0.5px 1.2px)',
+        'linear-gradient(155deg, rgba(255, 255, 255, 0.6) 0%, rgba(255, 255, 255, 0) 38%, rgba(0, 0, 0, 0) 60%, rgba(0, 0, 0, 0.3) 100%)',
+      ].join(', '),
+      boxShadow: 'inset 0 0 0 0.3px rgba(255, 255, 255, 0.45), inset 0 0 0.6px rgba(0, 0, 0, 0.3)',
+    }
+  }
+  return {
+    backgroundColor: color,
+    backgroundImage: `${GRAIN}, linear-gradient(140deg, rgba(255, 255, 255, 0.12), rgba(0, 0, 0, 0.12))`,
+    backgroundSize: '10px 10px, 100% 100%',
+    boxShadow: 'inset 0 0 0 0.3px rgba(255, 255, 255, 0.3), inset 0 0 0.8px rgba(0, 0, 0, 0.3)',
+  }
+}
+
+export function cube(parent: HTMLElement, size: number, colors: string[], radius = 0, finish: Finish = 'matte') {
   return FACES.map(({ normal, transform }, i) => ({
     normal,
-    element: plane(parent, size, size, transform(size / 2), { background: colors[i], borderRadius: `${radius}px` }),
+    element: plane(parent, size, size, transform(size / 2), { ...surface(colors[i]!, finish), borderRadius: `${radius}px` }),
   }))
 }
 

@@ -13,10 +13,19 @@ const floorShadow = (parent: HTMLElement, size: number) =>
     background: 'radial-gradient(closest-side, rgba(53, 68, 73, 0.45), rgba(53, 68, 73, 0))',
   })
 
+// 接觸陰影：物體貼近地面時，接觸點下方小而深的環境遮蔽
+const contactShadow = (parent: HTMLElement, size: number) =>
+  plane(parent, size, size, 'rotateX(90deg)', {
+    borderRadius: '50%',
+    backfaceVisibility: 'visible',
+    background: 'radial-gradient(closest-side, rgba(30, 38, 41, 0.6), rgba(30, 38, 41, 0) 100%)',
+  })
+
 // 立體球體彈跳：重力加速落下、反彈高度依次遞減，觸地壓扁；陰影隨高度縮放
 export const sphereBounce = css3dScene(86, ({ root, node }) => {
   const radius = 11
   const shadow = floorShadow(root, radius * 3)
+  const contact = contactShadow(root, radius * 1.1)
   // 球體的原點在底部，壓扁時以觸地點為基準；球面以漸層表現受光，並保持面向鏡頭
   const ball = node(root, {}, true)
   ball.suffix = `rotateX(${-TILT}deg)`
@@ -27,7 +36,13 @@ export const sphereBounce = css3dScene(86, ({ root, node }) => {
     width: `${radius * 2}px`,
     height: `${radius * 2}px`,
     borderRadius: '50%',
-    background: 'radial-gradient(circle at 34% 30%, color-mix(in srgb, var(--c3), white 32%) 0%, var(--c3) 48%, color-mix(in srgb, var(--c3), black 35%) 100%)',
+    // 光滑的烤漆球：鏡面高光、漫射明暗、明暗交界線，底部有地面反射的暖色反光
+    background: [
+      'radial-gradient(circle at 33% 27%, rgba(255, 255, 255, 0.95) 0%, rgba(255, 255, 255, 0.55) 5%, rgba(255, 255, 255, 0) 16%)',
+      'radial-gradient(ellipse 70% 40% at 50% 104%, color-mix(in srgb, var(--c4), transparent 45%) 0%, transparent 70%)',
+      'radial-gradient(circle at 38% 34%, color-mix(in srgb, var(--c3), white 30%) 0%, var(--c3) 42%, color-mix(in srgb, var(--c3), black 50%) 88%, color-mix(in srgb, var(--c3), black 35%) 100%)',
+    ].join(', '),
+    boxShadow: 'inset -1.5px -2.5px 5px rgba(0, 0, 0, 0.22)',
   }, ball.element)
 
   // 以重力計算（g = 1 的無因次時間）：落下高度 3，反彈係數 0.6
@@ -83,6 +98,9 @@ export const sphereBounce = css3dScene(86, ({ root, node }) => {
       const lift = Math.min((ball.position[1]! + ball.hop) / (height * scale), 1.5)
       shadow.style.transform = `translate3d(${ball.position[0]}px, 0, ${ball.position[2]}px) rotateX(90deg) scale(${1 - lift * 0.45})`
       shadow.style.opacity = String(1 - lift * 0.55)
+      // 接觸陰影只在貼近地面時出現
+      contact.style.transform = `translate3d(${ball.position[0]}px, 0, ${ball.position[2]}px) rotateX(90deg) scale(${1 + (1 - ball.scale[1]!) * 1.5})`
+      contact.style.opacity = String(Math.max(0, 1 - lift * 6))
     },
   }
 })
@@ -145,19 +163,22 @@ export const gyroscope = css3dScene(84, ({ root, node }) => {
     { radius: 13, color: 'var(--c2)' },
   ].map(({ radius, color }) => {
     const ring = node(group.element)
-    // 三層薄環疊出厚度，側面時仍看得出是實體
+    // 三層薄環疊出厚度，側面時仍看得出是實體；以錐形漸層表現拋光金屬環的反光
+    const metal = `conic-gradient(from 25deg, ${[0, 1, 2, 1, 0, 1, 2, 1, 0].map((k) => [`color-mix(in srgb, ${color}, white 55%)`, color, `color-mix(in srgb, ${color}, black 45%)`][k]).join(', ')})`
+    const ring2d = `radial-gradient(closest-side, transparent calc(100% - 2.2px), #000 calc(100% - 2.2px))`
     for (const z of [-0.9, 0, 0.9]) {
       plane(ring.element, radius * 2, radius * 2, `translateZ(${z}px)`, {
         borderRadius: '50%',
-        border: `2.2px solid ${color}`,
-        boxSizing: 'border-box',
+        background: metal,
+        maskImage: ring2d,
+        webkitMaskImage: ring2d,
         backfaceVisibility: 'visible',
       })
     }
     return ring
   })
   const core = node(group.element)
-  const faces = cube(core.element, 9, Array(6).fill('var(--c5)'), 1)
+  const faces = cube(core.element, 9, Array(6).fill('var(--c5)'), 1, 'metal')
 
   const DURATION = 4
   const quarter = keyframes([

@@ -1,4 +1,5 @@
 import * as THREE from 'three'
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js'
 import type { PhysicsSettings } from './physics'
 import type { Motion } from './stage'
 import type { Ease } from './timeline'
@@ -25,6 +26,19 @@ let observer: IntersectionObserver | null = null
 let frame = 0
 let rendererWidth = 0
 let rendererHeight = 0
+// 共用的環境光照貼圖：所有寫實場景共用一張，只建立一次
+let environment: THREE.Texture | null = null
+
+function getEnvironment(webgl: THREE.WebGLRenderer) {
+  if (!environment) {
+    const pmrem = new THREE.PMREMGenerator(webgl)
+    const room = new RoomEnvironment()
+    environment = pmrem.fromScene(room, 0.04).texture
+    room.dispose()
+    pmrem.dispose()
+  }
+  return environment
+}
 
 function getRenderer() {
   if (!renderer) {
@@ -84,6 +98,11 @@ function tick() {
       camera.aspect = w / h
       camera.updateProjectionMatrix()
     }
+    // 寫實場景使用色調映射與環境光照，其他場景維持原本的純色輸出
+    const { toneMapping, environment: useEnvironment, scene } = entry.motion
+    webgl.toneMapping = toneMapping ? THREE.ACESFilmicToneMapping : THREE.NoToneMapping
+    webgl.toneMappingExposure = toneMapping?.exposure ?? 1
+    if (useEnvironment && !scene.environment) scene.environment = getEnvironment(webgl)
     webgl.setViewport(0, 0, w, h)
     webgl.setScissor(0, 0, w, h)
 

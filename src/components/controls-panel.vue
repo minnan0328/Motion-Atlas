@@ -17,7 +17,7 @@ const set = <K extends keyof MotionParams>(key: K, value: MotionParams[K]) => {
 }
 
 const isScene = computed(() => props.meta.category === 'architecture')
-const durationLabel = computed(() => (isScene.value ? '列車繞行一圈（秒）' : '持續時間（秒）'))
+const durationLabel = computed(() => (isScene.value ? '發車間隔（秒）' : '持續時間（秒）'))
 const durationRange = computed(() => (isScene.value ? { min: 4, max: 40, step: 1 } : { min: 0.3, max: 10, step: 0.1 }))
 
 const presetLabel = computed(

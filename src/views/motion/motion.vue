@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, shallowRef, watch } from 'vue'
+import { computed, nextTick, ref, shallowRef, watch } from 'vue'
 import ControlsPanel from '../../components/controls-panel.vue'
 import DiagnosticsPanel from '../../components/diagnostics-panel.vue'
 import MotionPreview from '../../components/motion-preview.vue'
@@ -13,6 +13,17 @@ const props = defineProps<{ id: string }>()
 const meta = computed(() => findMotion(props.id))
 const params = ref<MotionParams>({ ...(meta.value?.defaults ?? MOTIONS[0]!.defaults) })
 const paused = ref(false)
+// 即時資訊與動態設定預設收合，需要時再展開；切換上一件、下一件時維持目前的展開狀態
+const showInfo = ref(false)
+const showSettings = ref(false)
+// 動態設定位於預覽下方，展開後捲動到可見範圍
+const settings = ref<HTMLElement>()
+async function toggleSettings() {
+  showSettings.value = !showSettings.value
+  if (!showSettings.value) return
+  await nextTick()
+  settings.value?.scrollIntoView({ behavior: 'smooth', block: 'nearest' })
+}
 
 // 切換作品時回到預設參數
 watch(
@@ -70,9 +81,34 @@ const reset = () => preview.value?.getInstance()?.reset()
         <div class="motion__stage" :style="{ aspectRatio: String(aspect) }">
           <MotionPreview :key="meta.id" ref="preview" :meta="meta" :params="params" :paused="paused" interactive />
         </div>
-        <p v-if="meta.supportedControls.includes('camera')" class="motion__hint">拖曳旋轉、滾輪縮放、右鍵平移</p>
-        <p v-else-if="meta.renderMode === 'webgl'" class="motion__hint">點擊預覽給予衝量，觀察剛性、阻尼與質量的反應</p>
+        <div class="motion__toolbar">
+          <p v-if="meta.supportedControls.includes('camera')" class="motion__hint">拖曳旋轉、滾輪縮放、右鍵平移</p>
+          <p v-else-if="meta.renderMode === 'webgl'" class="motion__hint">點擊預覽給予衝量，觀察剛性、阻尼與質量的反應</p>
+          <div class="motion__toggles">
+            <button
+              type="button"
+              :class="{ 'is-active': showInfo }"
+              :aria-expanded="showInfo"
+              aria-controls="motion-info"
+              @click="showInfo = !showInfo"
+            >
+              即時資訊 <span aria-hidden="true">{{ showInfo ? '▴' : '▾' }}</span>
+            </button>
+            <button
+              type="button"
+              :class="{ 'is-active': showSettings }"
+              :aria-expanded="showSettings"
+              aria-controls="motion-settings"
+              @click="toggleSettings"
+            >
+              動態設定 <span aria-hidden="true">{{ showSettings ? '▴' : '▾' }}</span>
+            </button>
+          </div>
+        </div>
+        <!-- 收合時不掛載，診斷數據的讀取迴圈也一併停止 -->
         <DiagnosticsPanel
+          v-if="showInfo"
+          id="motion-info"
           class="motion__diagnostics"
           :read="readDiagnostics"
           :render-mode="meta.renderMode"
@@ -83,7 +119,7 @@ const reset = () => preview.value?.getInstance()?.reset()
         />
       </section>
 
-      <aside class="motion__panel">
+      <aside v-if="showSettings" id="motion-settings" ref="settings" class="motion__panel">
         <ControlsPanel v-model="params" :meta="meta" :camera="camera" />
       </aside>
     </div>
@@ -161,16 +197,11 @@ const reset = () => preview.value?.getInstance()?.reset()
     }
   }
 
-  // 桌面版左右兩欄 3:2、高度一致；行動版依序為預覽、即時資訊、設定
+  // 單欄：預覽滿版，展開的即時資訊在預覽下方，動態設定再接在下方
   &__body {
     display: grid;
-    grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+    grid-template-columns: minmax(0, 1fr);
     gap: 24px;
-    align-items: stretch;
-
-    @media (max-width: 900px) {
-      grid-template-columns: minmax(0, 1fr);
-    }
   }
 
   &__left,
@@ -194,16 +225,42 @@ const reset = () => preview.value?.getInstance()?.reset()
     border-radius: 13px 13px 0 0;
   }
 
+  // 預覽下方：操作提示與展開按鈕
+  &__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px 16px;
+    padding: 12px 16px;
+  }
+
   &__hint {
     margin: 0 !important;
-    padding: 10px 16px 0;
     font-size: 12px;
-    text-align: center;
     color: var(--ui-muted);
+  }
+
+  &__toggles {
+    display: flex;
+    gap: 6px;
+    margin-left: auto;
+
+    button {
+      padding: 5px 14px;
+      border-radius: 999px;
+
+      &.is-active {
+        border-color: var(--ui-accent);
+        background: var(--ui-accent);
+        color: var(--ui-surface);
+      }
+    }
   }
 
   &__diagnostics {
     padding: 16px 20px 20px;
+    border-top: 1px solid var(--ui-border);
   }
 
   &__panel {

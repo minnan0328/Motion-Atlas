@@ -3,7 +3,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 
 // 疊在場景左上角的時間與季節標籤（CSS 輔助）
 const props = defineProps<{
-  read: () => { hour: number; season: { name: string; en: string } }
+  read: () => { hour: number; season: { name: string; en: string }; night?: boolean }
 }>()
 
 const time = ref('06:00')
@@ -13,13 +13,14 @@ const isNight = ref(false)
 let frame = 0
 function tick() {
   frame = requestAnimationFrame(tick)
-  const { hour, season: current } = props.read()
+  const { hour, season: current, night } = props.read()
   const hours = Math.floor(hour)
   // 以 10 分鐘為單位顯示，避免數字跳動太快
   const minutes = Math.floor(((hour % 1) * 60) / 10) * 10
   time.value = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`
   season.value = `${current.name} ${current.en}`
-  isNight.value = hour < 6 || hour >= 18.5
+  // 日出日落時刻隨季節改變，由場景提供是否為夜晚
+  isNight.value = night ?? (hour < 6 || hour >= 18.5)
 }
 
 onMounted(() => {
