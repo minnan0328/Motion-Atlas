@@ -57,6 +57,22 @@ Motion Atlas 是以動畫展示、即時預覽、參數調整及動畫技術探�
 - **動態**：品牌緩動 Atlas Ease `cubic-bezier(0.45, 0, 0.55, 1)`（`--brand-ease`），互動回饋 Atlas Spring（`--spring`）；標誌經線往返 3 秒、小星環繞 3.6 秒（5 : 6 錯落），小星在軌道兩端減速、繞到後方時被遮住；`prefers-reduced-motion` 或 `animated: false` 時停在小星位於前方的靜止畫面。
 - **使用規範**：不可變形、改色、旋轉、加效果或侵入淨空區；淺色背景用正向版、深色背景用反白版；印刷與靜態圖片使用靜態版本。Favicon 為同構成的靜態符號（`index.html` 內嵌 SVG，小尺寸加粗線條）。
 
+### 進場、退場與過場
+
+控制邏輯在 `src/router/transitions.ts`，樣式在 `src/styles/transitions.scss`；速度以 Atlas Ease 與 Atlas Spring 為主。順序為「目前頁面即時退場 → 共用元素過場 → 新頁依序進場」，不讓整頁快照與新頁的動畫重疊（重疊會在新頁掛載時卡頓）。
+
+- **首次進場**（`playIntro()`，`html.is-intro`）：Header 由上方滑入，標誌符號以彈簧放大、軌道沿路徑描繪、標準字淡入，接著頁面內容依序浮現。
+- **頁面進場**：需要依序浮現的元素加上 `.reveal`，以 `--i` 指定順序（每階 60ms）；首頁卡片依位置交錯（第 12 張之後同時出現）。共用元素（預覽、標題）不加 `.reveal`。
+- **退場**（`leave()`，換頁前在目前頁面即時演出，結束後才換頁）：以 `.is-leaving` 與元素上的 `data-leaving`、`--leave` 順序驅動 CSS 動畫，不持有 JS 動畫物件（避免留住舊頁元素與其中的 3D 場景）；動態區塊（`data-leave="shrink"`：首頁卡片、詳細頁的預覽、即時資訊與設定面板、品牌頁的標誌組合）縮小到 0.88 並淡出，其餘 `.reveal` 文字上移淡出；每個 220ms、依序間隔 15ms（最多 6 階），加速曲線離開。只處理畫面內可見的元素，共用元素（被點選的卡片、返回時的詳細頁預覽）不退場、留給過場變形。新頁渲染後移除標記（同一元件內換頁時元素會被沿用）。
+- **過場**（View Transitions API，於 `router.beforeResolve` 啟動、`afterEach` 渲染後結束）：整頁快照不再淡化（舊頁已退場），新頁直接出現並由 `.reveal` 依序浮現；
+  - `open` / `close`：卡片預覽與標題（`sharedMotion` 指定的卡片掛上 `view-transition-name: motion-stage / motion-title`）連續變形為詳細頁的預覽與標題，返回時反向；返回時還原捲動位置，讓共用元素回到原卡片。
+  - `next` / `prev`：詳細頁的上一件、下一件，新頁往行進方向滑入；此時詳細頁預覽不做共用元素變形，隨整頁滑動。
+  - `page`：其他頁面之間，只有退場與進場。
+  - Header（`view-transition-name: site-header`）不參與過場；只改變篩選條件（query）時不換頁、不過場。
+- 不支援 View Transitions 的瀏覽器同樣有退場與進場，只是沒有共用元素變形。
+- **捲動**：換頁回到頂端，返回時還原原本的位置。
+- `prefers-reduced-motion` 時不做首次進場、頁面進場與過場。
+
 ### 卡片
 
 - 整體寬高比 3:2，預覽區背景完整填滿。
@@ -139,7 +155,7 @@ src/three/
 
 src/data/                # DEFAULT_COLORS、Bezier 型別、彈簧緩動、brand.ts（品牌識別的單一來源）
 src/stores/              # theme（Light / Dark）、palette
-src/router/              # 路由與舊網址導向
+src/router/              # 路由、舊網址導向、捲動行為與換頁過場（transitions.ts）
 src/components/          # motion-preview、motion-card、controls-panel、diagnostics-panel、bezier-editor、site-logo
 src/views/               # home（作品網格＋搜尋篩選）、motion（詳細頁）、brand（品牌識別）、error
 ```
@@ -389,6 +405,7 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 - 鳴日號、藍皮解憂號依報導描述的配色建模，未取得照片比對；藍皮解憂號目前的牽引車型與塗裝未查證。
 - 日出日落時刻與太陽高度為各季中旬的近似值，不隨日期連續變化；日月方位以東升西落、經南方天空簡化，非依天文演算法計算。月亮固定為滿月，沒有月相變化。
 - 反覆進出台南漂浮島，離開後存活的 Three.js 物件數量不變，但 JS heap 會小幅上升後趨緩（約 49 → 53 MB），研判為瀏覽器的編譯快取。
+- 測試環境（軟體渲染）中，台南漂浮島佔用大量主執行緒，從該頁離開時退場與換頁可能延遲超過 1 秒；實機 GPU 上未量測。
 
 ---
 
@@ -406,6 +423,8 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 | Phase 8 | 首頁篩選預設收合：搜尋欄旁的「篩選」按鈕展開，按鈕顯示已套用的條件數量 | 1280、390 px 確認預設收合、展開、網址帶條件時的數量顯示，無水平捲動 |
 | Phase 9 | 網站 Logo：地球儀與環繞小星的動態標誌（`site-logo.vue`）取代原本的圓點，Favicon 改為同構圖的靜態版本 | 淺色、深色主題多個時間點截圖；減少動態時動畫暫停；Favicon 於 16、64 px 顯示正常 |
 | Phase 10 | 品牌識別（CIS）：`brand.ts` 單一來源、標誌構成方格化、標準字字重對比、橫式／直式／符號與正向／反白版、`--brand-*`／`--logo-*` 色彩變數、品牌緩動；新增 `/brand` 品牌識別頁、Footer 品牌連結、theme-color 與 description meta | 淺色、深色、390 px 截圖，無水平捲動；最小尺寸量測（符號 16px）；減少動態時暫停 |
+| Phase 11 | 進場、退場與過場：首次進場（Header 滑入、標誌描繪）、頁面內容依序浮現與卡片交錯、View Transitions 的共用元素變形（卡片 ↔ 詳細頁）、上一件／下一件方向滑動、換頁回到頂端與返回還原捲動 | 首次進場、開啟、下一件、上一件、返回的過場皆觸發並截圖確認中間影格；減少動態時全部停用；離開後 Three.js 物件數量不變 |
+| Phase 12 | 修正退場卡頓：改為換頁前即時退場（CSS 類別驅動），動態區塊縮小淡出、文字上移淡出（依序、只處理可見元素），整頁快照不再交叉淡化；上一件／下一件只保留滑入 | 開啟、下一件、返回的最長影格 17 ~ 33ms；退場中途截圖確認縮小與共用卡片保留；反覆進出台南漂浮島 8 次（等換頁完成後計數），Three.js 物件數量不變 |
 
 ---
 
@@ -426,6 +445,6 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 - ……
 ```
 
-### Phase 11（待規劃）
+### Phase 13（待規劃）
 
 尚未定義。

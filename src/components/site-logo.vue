@@ -42,7 +42,7 @@ onMounted(() => {
   <span class="site-logo" :class="[`is-${variant}`, `is-${tone}`, motion]" :style="{ '--meridian': `${BRAND_MOTION.meridian}s` }">
     <svg ref="svg" class="site-logo__symbol" :viewBox="`0 0 ${G.size} ${G.size}`" aria-hidden="true">
       <defs>
-        <path :id="`${id}-orbit`" :d="orbitPath" />
+        <path :id="`${id}-orbit`" :d="orbitPath" pathLength="100" />
         <!-- 軌道座標中的前半部（下半） -->
         <clipPath :id="`${id}-front`">
           <rect x="0" :y="c" :width="G.size" :height="c" />

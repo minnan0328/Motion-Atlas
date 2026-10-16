@@ -1,23 +1,28 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { categoryName } from '../motions/registry'
+import { sharedMotion } from '../router/transitions'
 import type { MotionMeta } from '../motions/core/types'
 import MotionPreview from './motion-preview.vue'
 
 // 全站共用的卡片：整體 3:2，預覽區填滿，左上角為順序編號，下方為標題、分類與標籤
-defineProps<{
+const props = defineProps<{
   index: number
   meta: MotionMeta
 }>()
+
+// 換頁過場時，被點選的卡片預覽與標題連續變形為詳細頁的預覽與標題
+const shared = computed(() => sharedMotion.value === props.meta.id)
 </script>
 
 <template>
-  <RouterLink :to="meta.route" class="motion-card">
-    <div class="motion-card__preview">
+  <RouterLink :to="meta.route" class="motion-card" :data-motion-id="meta.id">
+    <div class="motion-card__preview" :style="shared ? { viewTransitionName: 'motion-stage' } : undefined">
       <MotionPreview :meta="meta" :params="meta.defaults" />
     </div>
     <span class="motion-card__index">{{ String(index).padStart(3, '0') }}</span>
     <div class="motion-card__info">
-      <h2 class="motion-card__title">{{ meta.title }}</h2>
+      <h2 class="motion-card__title" :style="shared ? { viewTransitionName: 'motion-title' } : undefined">{{ meta.title }}</h2>
       <ul class="motion-card__tags">
         <li class="motion-card__category">{{ categoryName(meta.category) }}</li>
         <li v-for="tag in meta.tags.slice(0, 3)" :key="tag">{{ tag }}</li>

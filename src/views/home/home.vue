@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import MotionCard from '../../components/motion-card.vue'
+import { sharedMotion } from '../../router/transitions'
 import type { Category, Dimension } from '../../motions/core/types'
 import { CATEGORIES, MOTIONS, TECHNIQUES } from '../../motions/registry'
 
@@ -91,12 +92,12 @@ const countOf = (id: Category) => MOTIONS.filter((meta) => meta.category === id)
 
 <template>
   <main class="home">
-    <header class="home__header">
+    <header class="home__header reveal">
       <h1>Motion Atlas</h1>
       <p>基礎動態、文字動態與 3D 建築動態，依循動畫十二法則。進入作品可即時調整參數並查看診斷資訊。</p>
     </header>
 
-    <div class="home__toolbar">
+    <div class="home__toolbar reveal" style="--i: 1">
       <div class="home__search-row">
         <label class="home__search">
           <span aria-hidden="true">⌕</span>
@@ -183,11 +184,19 @@ const countOf = (id: Category) => MOTIONS.filter((meta) => meta.category === id)
     </div>
 
     <ul v-if="results.length" class="home__grid">
-      <li v-for="{ meta, index } in results" :key="meta.id">
+      <!-- 卡片依位置交錯浮現，第 12 張之後同時出現 -->
+      <!-- 從詳細頁返回時，共用元素的那張卡片由過場變形回來，不再淡入 -->
+      <li
+        v-for="({ meta, index }, position) in results"
+        :key="meta.id"
+        :class="{ reveal: sharedMotion !== meta.id }"
+        data-leave="shrink"
+        :style="{ '--i': Math.min(position, 12) + 2 }"
+      >
         <MotionCard :index="index" :meta="meta" />
       </li>
     </ul>
-    <div v-else class="home__empty">
+    <div v-else class="home__empty reveal">
       <p>找不到符合條件的作品</p>
       <button type="button" @click="clear">清除條件</button>
     </div>

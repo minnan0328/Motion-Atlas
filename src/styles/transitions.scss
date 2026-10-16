@@ -1,0 +1,207 @@
+// 進場、退場與過場動態（控制邏輯見 src/router/transitions.ts）
+// 速度以品牌緩動 Atlas Ease（--brand-ease）與彈簧 Atlas Spring（--spring）為主；
+// 退場在換頁前即時演出（動態區塊縮小淡出，短而快、加速離開），進場較長，由新頁各區塊依序浮現
+
+$enter: 0.48s;
+
+// —— 過場（View Transitions） ——
+
+// Header 在各頁相同，不參與過場
+.app-header {
+  view-transition-name: site-header;
+}
+
+::view-transition-group(site-header) {
+  animation: none;
+}
+
+::view-transition-old(site-header),
+::view-transition-new(site-header) {
+  animation: none;
+}
+
+// 整頁：舊頁已在換頁前即時退場（router/transitions.ts 的 leave()），快照不再淡化；
+// 新頁直接出現，由各區塊的 .reveal 依序浮現，避免兩層動畫重疊造成卡頓
+::view-transition-old(root) {
+  animation: none;
+  opacity: 0;
+}
+
+::view-transition-new(root) {
+  animation: none;
+}
+
+// 上一件、下一件：新頁往行進方向滑入；詳細頁預覽改隨整頁滑動，不做共用元素變形
+:root[data-transition='next']::view-transition-new(root) {
+  animation: slide-in-right $enter var(--brand-ease) both;
+}
+
+:root[data-transition='prev']::view-transition-new(root) {
+  animation: slide-in-left $enter var(--brand-ease) both;
+}
+
+:root[data-transition='next'] .motion__stage,
+:root[data-transition='prev'] .motion__stage {
+  view-transition-name: none !important;
+}
+
+// 共用元素：卡片預覽 ↔ 詳細頁預覽、卡片標題 ↔ 詳細頁標題，位置與尺寸以品牌緩動連續變形
+::view-transition-group(motion-stage),
+::view-transition-group(motion-title) {
+  animation-duration: 0.56s;
+  animation-timing-function: var(--brand-ease);
+}
+
+::view-transition-old(motion-stage),
+::view-transition-new(motion-stage) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 0.56s;
+  animation-timing-function: var(--brand-ease);
+}
+
+::view-transition-old(motion-title),
+::view-transition-new(motion-title) {
+  height: 100%;
+  width: auto;
+  animation-duration: 0.4s;
+}
+
+// —— 退場：換頁前即時演出（router/transitions.ts 的 leave() 標記元素與 --leave 順序） ——
+// 動態區塊縮小淡出、文字上移淡出；加速曲線離開，每個 220ms、依序間隔 15ms
+
+.is-leaving [data-leaving] {
+  animation: 0.22s cubic-bezier(0.55, 0, 1, 0.45) both;
+  animation-delay: calc(var(--leave, 0) * 15ms);
+}
+
+.is-leaving [data-leaving='shrink'] {
+  animation-name: leave-shrink;
+}
+
+.is-leaving [data-leaving='fade'] {
+  animation-name: leave-fade;
+}
+
+// —— 進場：頁面內容依序浮現（Stagger）；以 --i 指定順序 ——
+
+.reveal {
+  animation: reveal-up 0.6s var(--brand-ease) both;
+  animation-delay: calc(var(--i, 0) * 60ms + 80ms);
+}
+
+// —— 首次進場（html.is-intro，由 playIntro() 加上） ——
+
+.is-intro {
+  // Header 由上方滑入
+  .app-header {
+    animation: header-in 0.7s var(--brand-ease) both;
+  }
+
+  // 標誌：符號以彈簧放大、軌道沿路徑描繪出來，標準字稍後淡入
+  .app-header .site-logo__symbol {
+    animation: logo-in 0.9s var(--spring) 0.15s both;
+  }
+
+  .app-header .site-logo__orbit {
+    stroke-dasharray: 100;
+    animation: orbit-draw 1.1s var(--brand-ease) 0.25s both;
+  }
+
+  .app-header .site-logo__wordmark {
+    animation: reveal-right 0.6s var(--brand-ease) 0.45s both;
+  }
+
+  .app-header__nav,
+  .app-header__theme {
+    animation: reveal-up 0.5s var(--brand-ease) 0.55s both;
+  }
+
+  // 內容等 Header 到位後再浮現
+  .reveal {
+    animation-delay: calc(var(--i, 0) * 60ms + 450ms);
+  }
+}
+
+// 系統要求減少動態：取消所有進場、退場與過場
+@media (prefers-reduced-motion: reduce) {
+  .reveal,
+  .is-intro .app-header,
+  .is-intro .app-header .site-logo__symbol,
+  .is-intro .app-header .site-logo__orbit,
+  .is-intro .app-header .site-logo__wordmark,
+  .is-intro .app-header__nav,
+  .is-intro .app-header__theme {
+    animation: none;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+@keyframes leave-shrink {
+  to {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+}
+
+@keyframes leave-fade {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+
+@keyframes slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(64px);
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    opacity: 0;
+    transform: translateX(-64px);
+  }
+}
+
+@keyframes reveal-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+}
+
+@keyframes reveal-right {
+  from {
+    opacity: 0;
+    transform: translateX(-8px);
+  }
+}
+
+@keyframes header-in {
+  from {
+    transform: translateY(-100%);
+  }
+}
+
+@keyframes logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.4) rotate(-40deg);
+  }
+}
+
+@keyframes orbit-draw {
+  from {
+    stroke-dashoffset: 100;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}

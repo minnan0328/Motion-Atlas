@@ -21,12 +21,12 @@ const rules = [
 
 <template>
   <main class="brand">
-    <header class="brand__hero">
+    <header class="brand__hero reveal">
       <SiteLogo variant="stacked" class="brand__hero-logo" />
       <p class="brand__mission">{{ BRAND.mission }}</p>
     </header>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 1">
       <h2>品牌理念 <small>Mission Identity</small></h2>
       <p>Motion Atlas（{{ BRAND.nameZh }}）以「地圖」整理網頁上的動態：地球儀代表收納與索引知識的圖鑑（Atlas），環繞的小星代表持續運行的動態（Motion）。</p>
       <ul class="brand__keywords">
@@ -38,37 +38,37 @@ const rules = [
       </ul>
     </section>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 2">
       <h2>標誌組合 <small>Logo Lockups</small></h2>
       <div class="brand__lockups">
-        <figure class="is-light">
+        <figure class="is-light" data-leave="shrink">
           <SiteLogo variant="horizontal" tone="positive" class="brand__lockup" />
           <figcaption>橫式 · 正向版</figcaption>
         </figure>
-        <figure class="is-dark">
+        <figure class="is-dark" data-leave="shrink">
           <SiteLogo variant="horizontal" tone="reversed" class="brand__lockup" />
           <figcaption>橫式 · 反白版</figcaption>
         </figure>
-        <figure class="is-light">
+        <figure class="is-light" data-leave="shrink">
           <SiteLogo variant="stacked" tone="positive" class="brand__lockup" />
           <figcaption>直式 · 正向版</figcaption>
         </figure>
-        <figure class="is-dark">
+        <figure class="is-dark" data-leave="shrink">
           <SiteLogo variant="stacked" tone="reversed" class="brand__lockup" />
           <figcaption>直式 · 反白版</figcaption>
         </figure>
-        <figure class="is-light">
+        <figure class="is-light" data-leave="shrink">
           <SiteLogo tone="positive" class="brand__lockup is-symbol" />
           <figcaption>標誌符號 · 網站圖示、頭像</figcaption>
         </figure>
-        <figure class="is-dark">
+        <figure class="is-dark" data-leave="shrink">
           <SiteLogo tone="reversed" class="brand__lockup is-symbol" />
           <figcaption>標誌符號 · 反白版</figcaption>
         </figure>
       </div>
     </section>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 3">
       <h2>標誌構成 <small>Construction</small></h2>
       <div class="brand__construction">
         <div class="brand__grid">
@@ -97,7 +97,7 @@ const rules = [
       </div>
     </section>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 4">
       <h2>淨空區與最小尺寸 <small>Clear Space &amp; Minimum Size</small></h2>
       <div class="brand__space">
         <figure>
@@ -116,7 +116,7 @@ const rules = [
       </div>
     </section>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 4">
       <h2>品牌色彩 <small>Colors</small></h2>
       <ul class="brand__colors">
         <li v-for="color in BRAND_COLORS" :key="color.id">
@@ -128,7 +128,7 @@ const rules = [
       </ul>
     </section>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 4">
       <h2>字體 <small>Typography</small></h2>
       <div class="brand__type">
         <p class="brand__type-sample"><b>Motion</b> Atlas</p>
@@ -137,7 +137,7 @@ const rules = [
       </div>
     </section>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 4">
       <h2>動態規範 <small>Motion</small></h2>
       <ul class="brand__motion">
         <li v-for="item in easings" :key="item.name">
@@ -156,7 +156,7 @@ const rules = [
       <p class="brand__note">標誌節奏：經線往返 {{ BRAND_MOTION.meridian }} 秒、小星環繞 {{ BRAND_MOTION.orbit }} 秒（5 : 6），兩者錯落而不同步，使標誌持續有變化；系統要求減少動態時，標誌停在靜止畫面。</p>
     </section>
 
-    <section class="brand__section">
+    <section class="brand__section reveal" style="--i: 4">
       <h2>使用規範 <small>Usage</small></h2>
       <ul class="brand__rules">
         <li v-for="rule in rules" :key="rule">{{ rule }}</li>

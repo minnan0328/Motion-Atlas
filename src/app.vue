@@ -6,6 +6,7 @@ import { useTheme } from './stores/theme'
 
 const { theme, toggle } = useTheme()
 const year = new Date().getFullYear()
+
 </script>
 
 <template>
@@ -39,6 +40,7 @@ const year = new Date().getFullYear()
     </header>
 
     <div class="app__content">
+      <!-- 換頁過場由 router/transitions.ts 以 View Transitions 處理 -->
       <RouterView />
     </div>
 

@@ -2,9 +2,9 @@
 
 <template>
   <main class="error">
-    <h1>404</h1>
-    <p>找不到此頁面</p>
-    <RouterLink to="/">回到首頁</RouterLink>
+    <h1 class="reveal">404</h1>
+    <p class="reveal" style="--i: 1">找不到此頁面</p>
+    <RouterLink to="/" class="reveal" style="--i: 2">回到首頁</RouterLink>
   </main>
 </template>
 

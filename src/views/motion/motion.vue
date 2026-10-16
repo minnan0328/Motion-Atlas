@@ -61,25 +61,26 @@ const reset = () => preview.value?.getInstance()?.reset()
 
   <main v-else class="motion">
     <header class="motion__header">
-      <RouterLink :to="{ path: '/', query: { category: meta.category } }" class="motion__back">← {{ categoryName(meta.category) }}</RouterLink>
+      <RouterLink :to="{ path: '/', query: { category: meta.category } }" class="motion__back reveal">← {{ categoryName(meta.category) }}</RouterLink>
+      <!-- 標題與預覽是共用元素（由卡片連續變形而來），不加進場淡入 -->
       <h1>
-        <span class="motion__index">{{ String(number).padStart(3, '0') }}</span>
-        {{ meta.title }}
+        <span class="motion__index reveal">{{ String(number).padStart(3, '0') }}</span>
+        <span class="motion__title">{{ meta.title }}</span>
       </h1>
-      <p class="motion__en">{{ meta.titleEn }}</p>
-      <p>{{ meta.description }}</p>
-      <ul class="motion__tags">
+      <p class="motion__en reveal" style="--i: 1">{{ meta.titleEn }}</p>
+      <p class="reveal" style="--i: 2">{{ meta.description }}</p>
+      <ul class="motion__tags reveal" style="--i: 3">
         <li class="is-strong">{{ categoryName(meta.category) }}</li>
         <li class="is-strong">{{ meta.technique }} · {{ meta.dimension.toUpperCase() }}</li>
         <li v-for="tag in meta.tags" :key="tag">{{ tag }}</li>
       </ul>
-      <p class="motion__principles">
+      <p class="motion__principles reveal" style="--i: 4">
         主要原則：<span v-for="id in meta.animationPrinciples" :key="id">{{ principleName(id) }}</span>
       </p>
     </header>
 
     <!-- 預覽上方：操作提示與展開按鈕 -->
-    <div class="motion__toolbar">
+    <div class="motion__toolbar reveal" style="--i: 3">
       <p v-if="meta.supportedControls.includes('camera')" class="motion__hint">拖曳旋轉、滾輪縮放、右鍵平移</p>
       <p v-else-if="meta.renderMode === 'webgl'" class="motion__hint">點擊預覽給予衝量，觀察剛性、阻尼與質量的反應</p>
       <div class="motion__toggles">
@@ -105,13 +106,14 @@ const reset = () => preview.value?.getInstance()?.reset()
     </div>
     <div class="motion__body" :class="{ 'has-panel': showSettings }">
       <section class="motion__left">
-        <div class="motion__stage" :class="{ 'is-open': showInfo }" :style="{ aspectRatio: String(aspect) }">
+        <div class="motion__stage" data-leave="shrink" :class="{ 'is-open': showInfo }" :style="{ aspectRatio: String(aspect), viewTransitionName: 'motion-stage' }">
           <MotionPreview :key="meta.id" ref="preview" :meta="meta" :params="params" :paused="paused" interactive />
         </div>
         <!-- 收合時不掛載，診斷數據的讀取迴圈也一併停止 -->
         <DiagnosticsPanel
           v-if="showInfo"
           id="motion-info"
+          data-leave="shrink"
           class="motion__diagnostics"
           :read="readDiagnostics"
           :render-mode="meta.renderMode"
@@ -122,12 +124,12 @@ const reset = () => preview.value?.getInstance()?.reset()
         />
       </section>
 
-      <aside v-if="showSettings" id="motion-settings" ref="settings" class="motion__panel">
+      <aside v-if="showSettings" id="motion-settings" ref="settings" class="motion__panel" data-leave="shrink">
         <ControlsPanel v-model="params" :meta="meta" :camera="camera" />
       </aside>
     </div>
 
-    <nav v-if="sameCategory.length > 1 && prev && next" class="motion__nav">
+    <nav v-if="sameCategory.length > 1 && prev && next" class="motion__nav reveal" style="--i: 5">
       <RouterLink :to="prev.route">← {{ prev.title }}</RouterLink>
       <RouterLink :to="next.route">{{ next.title }} →</RouterLink>
     </nav>
@@ -156,6 +158,12 @@ const reset = () => preview.value?.getInstance()?.reset()
   &__back {
     font-size: 14px;
     color: var(--ui-muted);
+  }
+
+  // 共用元素需為單一的盒子
+  &__title {
+    display: inline-block;
+    view-transition-name: motion-title;
   }
 
   &__index {
