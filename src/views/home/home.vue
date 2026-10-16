@@ -73,6 +73,11 @@ const visibleTags = computed(() => (showAllTags.value ? tagOptions.value : tagOp
 const toggleTag = (tag: string) => {
   tags.value = tags.value.includes(tag) ? tags.value.filter((t) => t !== tag) : [...tags.value, tag]
 }
+// 篩選條件預設收合，只保留搜尋；展開按鈕上顯示已套用的條件數量（搜尋文字不計）
+const showFilters = ref(false)
+const filterCount = computed(
+  () => Number(Boolean(category.value)) + Number(Boolean(technique.value)) + Number(Boolean(dimension.value)) + tags.value.length,
+)
 const hasFilters = computed(() => Boolean(keyword.value || category.value || technique.value || dimension.value || tags.value.length))
 const clear = () => {
   keyword.value = ''
@@ -92,67 +97,83 @@ const countOf = (id: Category) => MOTIONS.filter((meta) => meta.category === id)
     </header>
 
     <div class="home__toolbar">
-      <label class="home__search">
-        <span aria-hidden="true">⌕</span>
-        <input v-model="keyword" type="search" placeholder="搜尋名稱或描述" aria-label="搜尋動畫" />
-      </label>
-
-      <div class="home__filters" role="group" aria-label="分類">
-        <span class="home__label">分類</span>
-        <button type="button" class="chip" :class="{ 'is-active': !category }" @click="category = ''">全部 <small>{{ MOTIONS.length }}</small></button>
+      <div class="home__search-row">
+        <label class="home__search">
+          <span aria-hidden="true">⌕</span>
+          <input v-model="keyword" type="search" placeholder="搜尋名稱或描述" aria-label="搜尋動畫" />
+        </label>
         <button
-          v-for="item in CATEGORIES"
-          :key="item.id"
           type="button"
-          class="chip"
-          :class="{ 'is-active': category === item.id }"
-          @click="category = category === item.id ? '' : item.id"
+          class="home__filter-toggle"
+          :class="{ 'is-active': showFilters }"
+          :aria-expanded="showFilters"
+          aria-controls="home-filters"
+          @click="showFilters = !showFilters"
         >
-          {{ item.name }} <small>{{ countOf(item.id) }}</small>
+          篩選
+          <span v-if="filterCount" class="home__badge" :aria-label="`已套用 ${filterCount} 個條件`">{{ filterCount }}</span>
+          <span aria-hidden="true">{{ showFilters ? '▴' : '▾' }}</span>
         </button>
       </div>
 
-      <div class="home__filters" role="group" aria-label="技術與維度">
-        <span class="home__label">技術</span>
-        <button
-          v-for="item in TECHNIQUES"
-          :key="item"
-          type="button"
-          class="chip"
-          :class="{ 'is-active': technique === item }"
-          @click="technique = technique === item ? '' : item"
-        >
-          {{ item }}
-        </button>
-        <span class="home__divider" />
-        <button
-          v-for="item in ['2d', '3d'] as const"
-          :key="item"
-          type="button"
-          class="chip"
-          :class="{ 'is-active': dimension === item }"
-          @click="dimension = dimension === item ? '' : item"
-        >
-          {{ item.toUpperCase() }}
-        </button>
-      </div>
+      <div v-show="showFilters" id="home-filters" class="home__panel">
+        <div class="home__filters" role="group" aria-label="分類">
+          <span class="home__label">分類</span>
+          <button type="button" class="chip" :class="{ 'is-active': !category }" @click="category = ''">全部 <small>{{ MOTIONS.length }}</small></button>
+          <button
+            v-for="item in CATEGORIES"
+            :key="item.id"
+            type="button"
+            class="chip"
+            :class="{ 'is-active': category === item.id }"
+            @click="category = category === item.id ? '' : item.id"
+          >
+            {{ item.name }} <small>{{ countOf(item.id) }}</small>
+          </button>
+        </div>
 
-      <div class="home__filters" role="group" aria-label="標籤">
-        <span class="home__label">標籤</span>
-        <button
-          v-for="{ tag, count } in visibleTags"
-          :key="tag"
-          type="button"
-          class="chip chip--small"
-          :class="{ 'is-active': tags.includes(tag) }"
-          :aria-pressed="tags.includes(tag)"
-          @click="toggleTag(tag)"
-        >
-          {{ tag }} <small>{{ count }}</small>
-        </button>
-        <button v-if="tagOptions.length > 18" type="button" class="home__more" @click="showAllTags = !showAllTags">
-          {{ showAllTags ? '收合' : `更多標籤（${tagOptions.length - 18}）` }}
-        </button>
+        <div class="home__filters" role="group" aria-label="技術與維度">
+          <span class="home__label">技術</span>
+          <button
+            v-for="item in TECHNIQUES"
+            :key="item"
+            type="button"
+            class="chip"
+            :class="{ 'is-active': technique === item }"
+            @click="technique = technique === item ? '' : item"
+          >
+            {{ item }}
+          </button>
+          <span class="home__divider" />
+          <button
+            v-for="item in ['2d', '3d'] as const"
+            :key="item"
+            type="button"
+            class="chip"
+            :class="{ 'is-active': dimension === item }"
+            @click="dimension = dimension === item ? '' : item"
+          >
+            {{ item.toUpperCase() }}
+          </button>
+        </div>
+
+        <div class="home__filters" role="group" aria-label="標籤">
+          <span class="home__label">標籤</span>
+          <button
+            v-for="{ tag, count } in visibleTags"
+            :key="tag"
+            type="button"
+            class="chip chip--small"
+            :class="{ 'is-active': tags.includes(tag) }"
+            :aria-pressed="tags.includes(tag)"
+            @click="toggleTag(tag)"
+          >
+            {{ tag }} <small>{{ count }}</small>
+          </button>
+          <button v-if="tagOptions.length > 18" type="button" class="home__more" @click="showAllTags = !showAllTags">
+            {{ showAllTags ? '收合' : `更多標籤（${tagOptions.length - 18}）` }}
+          </button>
+        </div>
       </div>
 
       <p class="home__count">
@@ -201,9 +222,49 @@ const countOf = (id: Category) => MOTIONS.filter((meta) => meta.category === id)
     margin-bottom: 24px;
   }
 
+  &__search-row {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    max-width: 560px;
+  }
+
+  // 篩選展開按鈕：已套用條件時顯示數量
+  &__filter-toggle {
+    display: inline-flex;
+    flex-shrink: 0;
+    align-items: center;
+    gap: 6px;
+    padding: 0 14px;
+    border-radius: 10px;
+    font-size: 14px;
+
+    &.is-active {
+      border-color: var(--ui-muted);
+    }
+  }
+
+  &__badge {
+    min-width: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: var(--ui-accent);
+    color: var(--ui-surface);
+    font-size: 11px;
+    line-height: 18px;
+    text-align: center;
+  }
+
+  &__panel {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
   &__search {
     position: relative;
-    max-width: 440px;
+    flex: 1;
+    min-width: 0;
 
     span {
       position: absolute;
