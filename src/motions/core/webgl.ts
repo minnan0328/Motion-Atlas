@@ -1,7 +1,7 @@
 import { el } from './dom'
 import { jsEasing } from './easing'
 import { keyframeAt } from './controllers'
-import { mountMotion } from '../../three/renderer'
+import { mountMotion, webglSupported } from '../../three/renderer'
 import type { CameraHandle, MotionFactory } from '../../three/stage'
 import { alternate, loop } from '../../three/timeline'
 import type { MotionContext, MotionInstance, MotionModule, MotionParams } from './types'
@@ -13,6 +13,7 @@ import type { MotionContext, MotionInstance, MotionModule, MotionParams } from '
 export function webglModule(factory: MotionFactory): MotionModule {
   return {
     create(context: MotionContext): MotionInstance {
+      if (!webglSupported()) return unsupported(context)
       const canvas = el('canvas', { display: 'block', width: '100%', height: '100%' }, context.container)
       const motion = factory()
       let params = context.params
@@ -101,5 +102,36 @@ export function webglModule(factory: MotionFactory): MotionModule {
         },
       }
     },
+  }
+}
+
+// 無法建立 WebGL context 時（停用硬體加速、GPU 被封鎖）顯示說明，不建立場景
+function unsupported(context: MotionContext): MotionInstance {
+  const message = el(
+    'div',
+    {
+      position: 'absolute',
+      inset: '0',
+      display: 'grid',
+      placeItems: 'center',
+      padding: '16px',
+      textAlign: 'center',
+      fontSize: context.interactive ? '14px' : '12px',
+      lineHeight: '1.6',
+      color: 'var(--ui-muted)',
+    },
+    context.container,
+    context.interactive
+      ? '此瀏覽器無法使用 WebGL，3D 場景無法顯示。請在瀏覽器設定中開啟硬體加速後重新整理。'
+      : '需要 WebGL',
+  )
+  return {
+    play() {},
+    pause() {},
+    reset() {},
+    resize() {},
+    update() {},
+    diagnostics: () => ({ playState: 'idle', progress: null, iteration: null, keyframe: null, note: 'WebGL 無法使用' }),
+    dispose: () => message.remove(),
   }
 }

@@ -40,6 +40,27 @@ function getEnvironment(webgl: THREE.WebGLRenderer) {
   return environment
 }
 
+// WebGL 是否可用：瀏覽器停用硬體加速或 GPU 被封鎖時無法建立 context，只檢查一次
+let supported: boolean | null = null
+
+export function webglSupported() {
+  if (supported === null) {
+    // 先以一般 canvas 探測，避免 Three.js 在失敗時輸出 Console Error
+    const probe = document.createElement('canvas')
+    const gl = probe.getContext('webgl2') ?? probe.getContext('webgl')
+    supported = Boolean(gl)
+    gl?.getExtension('WEBGL_lose_context')?.loseContext()
+    if (supported) {
+      try {
+        getRenderer()
+      } catch {
+        supported = false
+      }
+    }
+  }
+  return supported
+}
+
 function getRenderer() {
   if (!renderer) {
     renderer = new THREE.WebGLRenderer({ antialias: true })
