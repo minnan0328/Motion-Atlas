@@ -21,7 +21,7 @@ Motion Atlas 是以動畫展示、即時預覽、參數調整及動畫技術探�
 - Vue 3、TypeScript、Composition API、`<script setup lang="ts">`
 - Vue Router、Vite、Sass
 - 依分類決定渲染技術：
-  - **基礎動態、文字動態**：CSS / Web Animations API / SVG；需要立體效果時使用 CSS 3D Transform（`preserve-3d` + `perspective`），不使用 Three.js
+  - **基礎動態、文字動態、轉場動態**：CSS / Web Animations API / SVG；需要立體效果時使用 CSS 3D Transform（`preserve-3d` + `perspective`），不使用 Three.js
   - **建築動態**：Three.js（即時 3D 場景、攝影機、材質與光線）
 - Three.js 只在進入建築場景時延遲載入，不得被首頁或其他分類靜態引用
 - 狀態管理優先使用 Vue Reactivity；只有實際出現跨頁面共享狀態需求時，才引入額外套件
@@ -145,6 +145,7 @@ src/motions/
 ├── basic/               # 分類：基礎動態（index.ts 為 Metadata，basic-2d.ts 為 2D 實作）
 ├── basic3d/             # 基礎動態的 3D 場景（CSS 3D Transform）
 ├── typography/          # 分類：文字動態（Preset 引擎、keyframes、獨立模組）
+├── transition/          # 分類：轉場動態（engine.ts 頁面與時間軸引擎、transitions.ts 20 種轉場）
 └── architecture/        # 分類：建築動態（tainan-station.ts 場景、trains.ts 列車模型、sky.ts 天空與日月、scene-clock.vue 時間標籤）
 
 src/three/
@@ -224,7 +225,7 @@ Three.js 場景另外實作 `Motion`（`src/three/stage.ts`），由 `webglModul
 1. **Preset**：現有 Preset 引擎能完整表達 → 加入 keyframes 與設定。
 2. **Standalone（Web Animations）**：需要多階段、多物件協同或特殊時間軸 → `domScene()` 或 `waapiText()`。
 3. **Standalone（逐幀）**：需要逐幀計算（字元變換、物理模擬、連續函數）→ `rafText()` / `rafClock()`，診斷不回報 keyframe。
-4. **CSS 3D**：基礎或文字動態需要立體結構、空間深度 → `css3dScene()`（基礎動態）或 CSS 3D Transform（文字動態）。
+4. **CSS 3D**：基礎、文字或轉場動態需要立體結構、空間深度 → `css3dScene()`（基礎動態）或 CSS 3D Transform（文字動態）。
 5. **Three.js**：僅限建築動態 → 匯出 `MotionFactory`，以 `webglModule()` 包裝。
 
 不可為了重用而把複雜動畫簡化成缺乏辨識度的效果。
@@ -263,7 +264,14 @@ Three.js 場景另外實作 `Motion`（`src/three/stage.ts`），由 `webglModul
 3. `group` 必須是十種分類之一：Entrance、Exit、Emphasis、Transform、Reveal、Stagger、Kinetic、Loop、Elastic、Distortion。
 4. 新增後確認與現有作品的動作機制有實質差異。
 
-### 6.3 新增建築場景
+### 6.3 新增轉場動態
+
+1. 在 `src/motions/transition/transitions.ts` 以 `pageTransition((ctx) => ({ phase }))` 匯出：引擎建立瀏覽器視窗（內容區 216 × 126）與首頁、文章頁兩個頁面（`Page`：`root`、`parts`、`hero`、`anchor`、`shade` 等），一個循環為「停在首頁 → 前進轉場 → 停在文章頁 → 返回轉場」。
+2. `phase({ leaving, entering, forward })` 回傳該段轉場的 `tracks`（元素與 0 ~ 1 的 keyframe）；`below: true` 讓進入的頁面在下方。色幕、共用元素等以 `ctx.layer()` 建立，兩段轉場共用。引擎把兩段合併成一整個循環的 Web Animation，轉場以外的時間停在起點或終點，頁面上下順序自動切換。
+3. 每段轉場的 keyframe 在各格使用相同的屬性；沒有 `easing` 的格使用參數的緩動，彈簧用 `ctx.spring`。
+4. 在 `transition/index.ts` 的 `ENTRIES` 加入一筆：`group` 為佔滿、遮罩、移動之一（第一個標籤），並確認與現有轉場的機制有實質差異。
+
+### 6.4 新增建築場景
 
 1. 在 `src/motions/architecture/` 新增場景檔，匯出 `MotionFactory`：`createStage({ mode: '3d', ground: 'none', ... })`，提供 `timeline`、`update(time, ease)`、`controls(element)`（回傳 `CameraHandle`）、`diagnostics(time)`、`overlay`，並設定 `toneMapping` 與 `environment`。
 2. 在 `architecture/index.ts` 加入 Metadata，`load: () => Promise.all([import('../core/webgl'), import('./xxx')]).then(([{ webglModule }, m]) => webglModule(m.default))`。
@@ -275,7 +283,7 @@ Three.js 場景另外實作 `Motion`（`src/three/stage.ts`），由 `webglModul
    - 鏡頭可 360 度環繞並從島底仰望（極角約 8°～172°），以最小距離與平移範圍確保鏡頭始終在小島外側；詳細頁預設自動環繞（`autoRotate: true`），卡片預覽沒有鏡頭操作時由小島自行緩慢旋轉。雲朵靠近鏡頭時淡出，避免遮住畫面。
 6. **材質**：以 `getTextures()` 取得共用紋理，透過 `textured(color, set, tile)` 建立材質並以 `projectUV()` 依世界尺寸鋪設；金屬、玻璃、烤漆以 roughness / metalness 區分，車身等烤漆可用 `MeshPhysicalMaterial` 的 clearcoat。共用紋理不在場景中 dispose。
 
-### 6.4 新增分類
+### 6.5 新增分類
 
 1. `core/types.ts` 的 `Category` 加入新 ID。
 2. 建立 `src/motions/<category>/index.ts`，匯出 `MotionMeta[]`。
@@ -283,7 +291,7 @@ Three.js 場景另外實作 `Motion`（`src/three/stage.ts`），由 `webglModul
 
 Header 導覽、首頁篩選、搜尋、路由與詳細頁會自動納入，不需修改頁面元件。
 
-### 6.5 驗證新增項目
+### 6.6 驗證新增項目
 
 - `npm run build` 通過，無 Console Error。
 - 首頁卡片、詳細頁、搜尋與篩選皆能找到新作品。
@@ -297,7 +305,7 @@ Header 導覽、首頁篩選、搜尋、路由與詳細頁會自動納入，不�
 
 ### 7.1 網站
 
-- 首頁作品網格（121 件），名稱與描述搜尋，分類、技術、2D / 3D、標籤篩選（預設收合），條件同步網址，清除條件與無結果狀態。
+- 首頁作品網格（141 件），名稱與描述搜尋，分類、技術、2D / 3D、標籤篩選（預設收合），條件同步網址，清除條件與無結果狀態。
 - 作品詳細頁 `/motion/:id`：預覽、即時資訊（FPS、Frame Time、Progress、Keyframe、Playback、Rendering）、播放／暫停／重設、只顯示支援的控制項；即時資訊與動態設定預設收合（見第 2 節）。
 - 品牌識別頁 `/brand`：理念、標誌組合（橫式、直式、符號 × 正向版、反白版）、構成方格、淨空區與最小尺寸、色彩、字體、動態規範與使用規範。
 - Header（動態標誌）、Footer（品牌識別連結）、Light / Dark Theme、響應式版面；舊網址 `/basic`、`/text`、`/typography`、`/architecture`、`/:category/:id` 自動導向。
@@ -325,7 +333,20 @@ Header 導覽、首頁篩選、搜尋、路由與詳細頁會自動納入，不�
 - 支援示範文字替換；彈性類以剛性、阻尼與質量產生彈簧緩動。
 - 以 keyframe 曲線比對檢查相似度，相近的組合已重新設計，剩餘相近者在單位、順序、基準點或圖形互動上有差異。
 
-### 7.4 建築動態：台南漂浮島（1 件）
+### 7.4 轉場動態（20 件）
+
+網頁版型的換頁轉場（`transition/`）。每件在瀏覽器視窗中循環播放「首頁 → 文章頁 → 首頁」，同時呈現離開與進入的頁面；返回時多半反向或改由返回鍵觸發。
+
+| 類型 | 作品 |
+| --- | --- |
+| 佔滿（7） | 色幕掃過、多層色幕（三層錯開）、百葉色條（六條依序伸縮）、方格翻覆（對角線依序旋轉縮放）、色彩淡轉、曲線波幕（SVG 前緣鼓起、後緣落後）、載入幕（載入環與不等速進度條） |
+| 遮罩（6） | 圓形展開（按鈕預備動作後以 clip-path 圓形展開）、斜角擦除（硬邊與視差）、柔邊漸層（mask-image 羽化）、卡片展開（從卡片的圓角矩形展開、返回時收回）、對開門（舊頁切半滑開）、視窗穿越（主視覺成為視窗、鏡頭推進） |
+| 移動（7） | 水平推移、視差覆蓋（下層移動三成並變暗）、底部面板（彈簧緩動）、內容交錯（區塊依序離開與進場）、縮放穿越、立方體旋轉（CSS 3D Transform）、共用元素（縮圖以 FLIP 飛到大圖） |
+
+- 皆以 Web Animations API 實作（曲線波幕使用 SVG、柔邊漸層使用 CSS Mask），支援時間、方向與緩動設定；幅度用於波幕曲線、斜度、羽化寬度、視差比例、交錯距離與縮放比例；底部面板以剛性、阻尼與質量取代 cubic-bezier。
+- Header 導覽、首頁篩選與搜尋自動納入；390 px 的 Header 導覽縮小間距以容納四個分類。
+
+### 7.5 建築動態：台南漂浮島（1 件）
 
 id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `architecture/tainan-station.ts` 與 `trains.ts`。
 
@@ -399,7 +420,9 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 
 - 100 件文字動畫以自動化檢查與抽樣目視確認，未逐一逐格人工檢視。
 - 實機 FPS 未測量：測試環境為軟體渲染，PBR 著色器在軟體渲染下首次編譯較慢。
-- 部分效果需較新瀏覽器：`offset-path`、`linear()` 緩動（Chrome 116+、Safari 17.2+、Firefox 112+）。
+- 部分效果需較新瀏覽器：`offset-path`、`linear()` 緩動（Chrome 116+、Safari 17.2+、Firefox 112+）；柔邊漸層需要可動畫的 `mask-position`（未加前綴的 CSS Mask，Chrome 120+）。
+- 轉場動態的卡片預覽在同一時間掛載，停留畫面時首頁的 20 張卡片看起來相同，要等到轉場段落才看得出差異。
+- 立方體旋轉標記為 3D，但未套用寫實材質（與文字動態的 3D 作品相同）。
 - CSS 3D 沒有真實光照：立方體以面法向量計算亮度、球體以漸層表現受光，金屬環的反光隨物件一起轉動。文字動態中標記 3D 的作品未套用寫實材質。
 - 建築模型依文字資料建模，未以實測圖面或照片比對，未宣稱達成精確比例或特定還原度；建築材質的色彩依文獻描述選用，未經實地比對。
 - 紋理為程序產生的近似表現，非實景照片材質；首次產生約 0.3 秒（之後全站共用）。
@@ -427,6 +450,7 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 | Phase 11 | 進場、退場與過場：首次進場（Header 滑入、標誌描繪）、頁面內容依序浮現與卡片交錯、View Transitions 的共用元素變形（卡片 ↔ 詳細頁）、上一件／下一件方向滑動、換頁回到頂端與返回還原捲動 | 首次進場、開啟、下一件、上一件、返回的過場皆觸發並截圖確認中間影格；減少動態時全部停用；離開後 Three.js 物件數量不變 |
 | Phase 12 | 修正退場卡頓：改為換頁前即時退場（CSS 類別驅動），動態區塊縮小淡出、文字上移淡出（依序、只處理可見元素），整頁快照不再交叉淡化；上一件／下一件只保留滑入 | 開啟、下一件、返回的最長影格 17 ~ 33ms；退場中途截圖確認縮小與共用卡片保留；反覆進出台南漂浮島 8 次（等換頁完成後計數），Three.js 物件數量不變 |
 | Phase 13 | 詳細頁：標題與按鈕合併為一列，說明、標籤與原則移到預覽下方，預覽高度填滿可用空間；新增「放大」全螢幕預覽（不支援時改為覆蓋視窗） | 1280、1440、390 px 截圖；預覽由約 585px 提高到 710px 且不超出視窗；全螢幕、Esc 結束、覆蓋視窗與捲動鎖定皆確認；無水平捲動 |
+| Phase 14 | 轉場動態分類：`pageTransition()` 引擎（瀏覽器視窗、首頁與文章頁、前進與返回兩段合併成一個循環）與 20 件轉場（佔滿 7、遮罩 6、移動 7）；390 px Header 導覽縮小間距 | 20 件於前進、返回各取多個時間點截圖確認離開與進入；首頁篩選、搜尋、詳細頁皆可找到；1280、820、390 px 無水平捲動、無 Console Error |
 
 ---
 
@@ -447,6 +471,6 @@ id 為 `tainan-station`（網址 `/motion/tainan-station`），實作於 `archit
 - ……
 ```
 
-### Phase 14（待規劃）
+### Phase 15（待規劃）
 
 尚未定義。

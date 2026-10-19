@@ -145,10 +145,23 @@ const year = new Date().getFullYear()
     font-size: 15px;
   }
 
-  // 窄螢幕只保留標誌符號
+  // 窄螢幕只保留標誌符號，並縮小導覽間距讓所有分類放得下
   @media (max-width: 480px) {
+    &__inner {
+      gap: 10px;
+    }
+
     &__mark :deep(.site-logo__wordmark) {
       display: none;
+    }
+
+    &__nav {
+      gap: 2px;
+
+      a {
+        padding: 6px 5px;
+        font-size: 13px;
+      }
     }
   }
 }

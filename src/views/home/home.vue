@@ -94,7 +94,7 @@ const countOf = (id: Category) => MOTIONS.filter((meta) => meta.category === id)
   <main class="home">
     <header class="home__header reveal">
       <h1>Motion Atlas</h1>
-      <p>基礎動態、文字動態與 3D 建築動態，依循動畫十二法則。進入作品可即時調整參數並查看診斷資訊。</p>
+      <p>基礎動態、文字動態、轉場動態與 3D 建築動態，依循動畫十二法則。進入作品可即時調整參數並查看診斷資訊。</p>
     </header>
 
     <div class="home__toolbar reveal" style="--i: 1">

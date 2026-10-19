@@ -2,7 +2,7 @@ import type { Component } from 'vue'
 import type { Bezier } from '../../data/motion'
 import type { PrincipleId } from './principles'
 
-export type Category = 'basic' | 'typography' | 'architecture'
+export type Category = 'basic' | 'typography' | 'transition' | 'architecture'
 
 // css：DOM + Web Animations API；svg：DOM/SVG + Web Animations API；webgl：Three.js
 export type RenderMode = 'css' | 'svg' | 'webgl'
